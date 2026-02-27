@@ -28,7 +28,7 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 
 ## Sidephone Only Features
 
-When a Sundial keypad is connected, sidespot enables full hardware navigation -- no touchscreen needed.
+When a Sundial keypad is connected, sidespot enables full hardware navigation -- no touchscreen needed (with the exception of shuffle/loop buttons in Now Playing).
 
 | Control | Action |
 |---------|--------|
