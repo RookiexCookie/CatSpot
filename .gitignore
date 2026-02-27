@@ -25,3 +25,4 @@ Thumbs.db
 *.keystore
 *.jks
 google-services.json
+release-keystore.properties
