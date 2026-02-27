@@ -7,7 +7,8 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/library.png" width="180" alt="Library">
+  <img src="screenshots/library_top.png" width="180" alt="Library">
+  <img src="screenshots/library.png" width="180" alt="Liked Songs">
   <img src="screenshots/search.png" width="180" alt="Search">
   <img src="screenshots/queue.png" width="180" alt="Queue">
   <img src="screenshots/now_playing.png" width="180" alt="Now Playing">
@@ -19,7 +20,7 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 - **Optimized for small screens** -- dark theme, 48dp+ touch targets, designed for 2.8" displays
 - **Full playback** -- play, pause, seek, skip, shuffle, repeat, queue management
 - **Library browsing** -- playlists, liked songs, saved albums
-- **Search** -- find tracks, artists, albums, and playlists
+- **Search** -- find tracks, albums, and podcasts
 - **Background playback** -- foreground service with media notification controls
 - **Hardware volume keys** -- physical button integration
 - **Audio focus** -- pauses for calls, ducks for notifications, resumes automatically
