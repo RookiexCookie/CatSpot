@@ -241,6 +241,7 @@ fun TrackListScreen(
                 TrackRow(
                     index = index + 1,
                     track = track,
+                    showAlbumArt = !state.isAlbum,
                     onClick = {
                         playerViewModel.loadTrackFromContext(
                             state.trackUris, index, state.name,
@@ -288,6 +289,7 @@ fun TrackListScreen(
 private fun TrackRow(
     index: Int,
     track: TrackInfo,
+    showAlbumArt: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -310,34 +312,35 @@ private fun TrackRow(
             modifier = Modifier.width(28.dp),
         )
 
-        // Album art thumbnail
-        if (track.albumArtUrl != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context).data(track.albumArtUrl).size(128).build(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
+        // Album art thumbnail (hidden for album views)
+        if (showAlbumArt) {
+            if (track.albumArtUrl != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(track.albumArtUrl).size(128).build(),
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    contentScale = ContentScale.Crop,
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
+            Spacer(modifier = Modifier.width(12.dp))
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
 
         // Track info
         Column(modifier = Modifier.weight(1f)) {
