@@ -15,6 +15,7 @@ enum class AudioQuality(val bitrate: Int, val label: String) {
 
 data class SettingsState(
     val normalization: Boolean = false,
+    val gapless: Boolean = true,
     val autoplay: Boolean = false,
     val audioQuality: AudioQuality = AudioQuality.HIGH,
 )
@@ -25,6 +26,7 @@ class SettingsManager(context: Context) {
         private const val PREFS_NAME = "sidespot_settings"
         private const val KEY_NORMALIZATION = "normalization"
         private const val KEY_AUTOPLAY = "autoplay"
+        private const val KEY_GAPLESS = "gapless"
         private const val KEY_AUDIO_QUALITY = "audio_quality"
     }
 
@@ -43,6 +45,7 @@ class SettingsManager(context: Context) {
         }
         return SettingsState(
             normalization = prefs.getBoolean(KEY_NORMALIZATION, false),
+            gapless = prefs.getBoolean(KEY_GAPLESS, true),
             autoplay = prefs.getBoolean(KEY_AUTOPLAY, false),
             audioQuality = quality,
         )
@@ -59,12 +62,13 @@ class SettingsManager(context: Context) {
      * Apply audio settings (normalization + quality), persist, and push to native.
      * Caller should follow this with PlayerViewModel.recreatePlayer().
      */
-    fun applyAudioSettings(normalization: Boolean, quality: AudioQuality) {
+    fun applyAudioSettings(normalization: Boolean, gapless: Boolean, quality: AudioQuality) {
         prefs.edit()
             .putBoolean(KEY_NORMALIZATION, normalization)
+            .putBoolean(KEY_GAPLESS, gapless)
             .putString(KEY_AUDIO_QUALITY, quality.name)
             .apply()
-        _state.value = _state.value.copy(normalization = normalization, audioQuality = quality)
+        _state.value = _state.value.copy(normalization = normalization, gapless = gapless, audioQuality = quality)
         pushConfigToNative()
     }
 
@@ -74,6 +78,7 @@ class SettingsManager(context: Context) {
         val json = JSONObject().apply {
             put("bitrate", s.audioQuality.bitrate)
             put("normalisation", s.normalization)
+            put("gapless", s.gapless)
             put("autoplay", s.autoplay)
         }
         val error = NativeBridge.playerConfigure(json.toString())

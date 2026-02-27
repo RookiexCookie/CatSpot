@@ -14,7 +14,7 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 - **Background playback** -- foreground service with media notification controls
 - **Hardware volume keys** -- physical button integration
 - **Audio focus** -- pauses for calls, ducks for notifications, resumes automatically
-- **Settings** -- audio quality (96/160/320 kbps), volume normalization, autoplay
+- **Settings** -- audio quality (96/160/320 kbps), volume normalization, gapless playback, autoplay
 
 ## Requirements
 
@@ -110,7 +110,7 @@ keyPassword=your-key-password
 - **arm64 only** -- the native library is built exclusively for `arm64-v8a` (aarch64)
 - **No lossless/HiFi** -- max quality is 320 kbps OGG Vorbis. Spotify's lossless tier uses DRM that librespot cannot and will not circumvent
 - **No Spotify Connect** -- the device does not appear as a Spotify Connect target
-- **No gapless playback or crossfade** -- tracks have a brief gap between them
+- **No crossfade** -- crossfade between tracks is not supported
 - **No offline mode** -- streaming only, no download/cache for offline listening
 - **Account risk** -- Spotify has not sanctioned third-party clients. Use at your own risk
 

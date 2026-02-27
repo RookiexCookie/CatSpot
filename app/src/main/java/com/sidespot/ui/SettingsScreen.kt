@@ -54,11 +54,15 @@ fun SettingsScreen(
     var draftNormalization by remember(settings.normalization) {
         mutableStateOf(settings.normalization)
     }
+    var draftGapless by remember(settings.gapless) {
+        mutableStateOf(settings.gapless)
+    }
     var draftQuality by remember(settings.audioQuality) {
         mutableStateOf(settings.audioQuality)
     }
 
     val hasAudioChanges = draftNormalization != settings.normalization ||
+        draftGapless != settings.gapless ||
         draftQuality != settings.audioQuality
 
     Column(
@@ -131,6 +135,35 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Gapless playback toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Gapless Playback",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                Text(
+                    text = "Seamless transition between tracks",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = draftGapless,
+                onCheckedChange = { draftGapless = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Streaming quality radio
         Text(
             text = "Streaming Quality",
@@ -174,7 +207,7 @@ fun SettingsScreen(
         // Save button
         Button(
             onClick = {
-                settingsManager.applyAudioSettings(draftNormalization, draftQuality)
+                settingsManager.applyAudioSettings(draftNormalization, draftGapless, draftQuality)
                 playerViewModel.recreatePlayer()
             },
             enabled = hasAudioChanges,

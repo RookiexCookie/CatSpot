@@ -27,6 +27,7 @@ static APP_CONFIG: OnceLock<StdMutex<AppConfig>> = OnceLock::new();
 pub struct AppConfig {
     pub bitrate: Option<u32>,
     pub normalisation: Option<bool>,
+    pub gapless: Option<bool>,
     pub autoplay: Option<bool>,
 }
 
@@ -123,6 +124,9 @@ pub async fn create_player() -> Result<()> {
         }
         if let Some(norm) = app_cfg.normalisation {
             config.normalisation = norm;
+        }
+        if let Some(gapless) = app_cfg.gapless {
+            config.gapless = gapless;
         }
     }
 
