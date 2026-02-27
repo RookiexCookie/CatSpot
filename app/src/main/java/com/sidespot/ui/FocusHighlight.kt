@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private val DPAD_BACK_CODES = setOf(
-    KeyEvent.KEYCODE_DPAD_LEFT,
     KeyEvent.KEYCODE_DPAD_RIGHT,
 )
 

@@ -137,9 +137,22 @@ fun SidespotNavigation(
                     }
                 }
             }
+            mainActivity.onTabCycleRequested = {
+                val currentIdx = bottomNavItems.indexOfFirst {
+                    it.route == navController.currentDestination?.route
+                }
+                val nextIdx = (currentIdx + 1) % bottomNavItems.size
+                navController.navigate(bottomNavItems[nextIdx].route) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        inclusive = false
+                    }
+                    launchSingleTop = true
+                }
+            }
         }
         onDispose {
             mainActivity?.onNowPlayingToggleRequested = null
+            mainActivity?.onTabCycleRequested = null
         }
     }
 

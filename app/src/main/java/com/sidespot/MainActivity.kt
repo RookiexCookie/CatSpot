@@ -27,6 +27,7 @@ class MainActivity : ComponentActivity() {
 
     var currentRoute: String? = null
     var onNowPlayingToggleRequested: (() -> Unit)? = null
+    var onTabCycleRequested: (() -> Unit)? = null
 
     // Center button long-press tracking
     private var centerDownTime = 0L
@@ -108,8 +109,16 @@ class MainActivity : ComponentActivity() {
             return true
         }
 
-        // DPAD_LEFT / DPAD_RIGHT — translate to BACK so it dismisses bottom sheets and navigates back
-        if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+        // DPAD_LEFT — cycle bottom nav tabs
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                onTabCycleRequested?.invoke()
+            }
+            return true
+        }
+
+        // DPAD_RIGHT — translate to BACK so it dismisses bottom sheets and navigates back
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             val translated = KeyEvent(
                 event.downTime, event.eventTime, event.action,
                 KeyEvent.KEYCODE_BACK, event.repeatCount, event.metaState,

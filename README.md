@@ -36,7 +36,7 @@ When a Sundial keypad is connected, sidespot enables full hardware navigation --
 | **Dial left** | Previous track |
 | **Dial right** | Next track |
 | **Center glass** | Select focused item in lists; Play/Pause on Now Playing; long-hold for row actions |
-| **Top-left (←)** | Navigate back / dismiss menus |
+| **Top-left (←)** | Cycle tabs (Queue / Library / Search) |
 | **Top-right (→)** | Navigate back / dismiss menus |
 | **Bottom-left (Tab)** | Show / hide Now Playing |
 | **Bottom-right (Enter)** | Open row actions (add to queue, liked songs, playlist) |
