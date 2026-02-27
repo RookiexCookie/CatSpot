@@ -45,6 +45,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.sidespot.MainActivity
 import com.sidespot.auth.AuthManager
 import com.sidespot.settings.SettingsManager
 import com.sidespot.viewmodel.LibraryViewModel
@@ -87,6 +88,7 @@ fun SidespotNavigation(
     playerViewModel: PlayerViewModel = viewModel(),
     authManager: AuthManager,
     settingsManager: SettingsManager,
+    mainActivity: MainActivity? = null,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -120,6 +122,34 @@ fun SidespotNavigation(
         onDispose {
             controller.show(WindowInsetsCompat.Type.statusBars())
         }
+    }
+
+    // Sync current route and wire Sundial keypad callbacks to MainActivity
+    DisposableEffect(mainActivity, navController) {
+        if (mainActivity != null) {
+            mainActivity.onNowPlayingToggleRequested = {
+                val onNowPlaying = navController.currentDestination?.route == Routes.NOW_PLAYING
+                if (onNowPlaying) {
+                    navController.popBackStack()
+                } else {
+                    navController.navigate(Routes.NOW_PLAYING) {
+                        launchSingleTop = true
+                    }
+                }
+            }
+            mainActivity.onBackRequested = {
+                navController.popBackStack()
+            }
+        }
+        onDispose {
+            mainActivity?.onNowPlayingToggleRequested = null
+            mainActivity?.onBackRequested = null
+        }
+    }
+
+    // Sync currentRoute to activity for context-sensitive key handling
+    LaunchedEffect(currentRoute) {
+        mainActivity?.currentRoute = currentRoute
     }
 
     // Auto-connect when authenticated but not yet connected (handles app relaunch

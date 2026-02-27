@@ -127,10 +127,12 @@ fun QueueScreen(
         itemsIndexed(queueState.userQueue, key = { index, uri -> "uq_${index}_$uri" }) { index, uri ->
             val metadata = queueState.trackMetadata[uri]
             Box(
-                modifier = Modifier.combinedClickable(
-                    onClick = { playerViewModel.skipToQueueItem(isUserQueue = true, index = index) },
-                    onLongClick = { selectedQueueIndex = index },
-                ),
+                modifier = Modifier
+                    .focusHighlight()
+                    .combinedClickable(
+                        onClick = { playerViewModel.skipToQueueItem(isUserQueue = true, index = index) },
+                        onLongClick = { selectedQueueIndex = index },
+                    ),
             ) {
                 QueueTrackRow(
                     albumArtUrl = metadata?.albumArtUrl,
@@ -162,9 +164,11 @@ fun QueueScreen(
             val metadata = queueState.trackMetadata[uri]
             val absoluteIndex = queueState.contextIndex + 1 + index
             Box(
-                modifier = Modifier.clickable {
-                    playerViewModel.skipToQueueItem(isUserQueue = false, index = absoluteIndex)
-                },
+                modifier = Modifier
+                    .focusHighlight()
+                    .clickable {
+                        playerViewModel.skipToQueueItem(isUserQueue = false, index = absoluteIndex)
+                    },
             ) {
                 QueueTrackRow(
                     albumArtUrl = metadata?.albumArtUrl,

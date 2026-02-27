@@ -101,6 +101,7 @@ fun LibraryScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusHighlight()
                             .clickable(onClick = onLikedSongsClick)
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -126,6 +127,7 @@ fun LibraryScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusHighlight()
                             .clickable(onClick = onSavedAlbumsClick)
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -151,6 +153,7 @@ fun LibraryScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusHighlight()
                             .clickable(onClick = onPodcastsClick)
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -176,6 +179,7 @@ fun LibraryScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusHighlight()
                             .clickable { onPlaylistClick(playlist.uri) }
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,

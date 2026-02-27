@@ -19,6 +19,7 @@ data class TrackListUiState(
     val trackUris: List<String> = emptyList(),
     val tracks: List<TrackInfo> = emptyList(),
     val albumArtUrl: String? = null,
+    val isAlbum: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
 )
@@ -115,6 +116,7 @@ class TrackListViewModel : ViewModel() {
                 trackUris = trackUris,
                 tracks = trackInfos,
                 albumArtUrl = album.albumArtUrl,
+                isAlbum = true,
                 isLoading = false,
             )
         }

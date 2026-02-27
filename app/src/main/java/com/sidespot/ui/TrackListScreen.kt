@@ -40,6 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import android.view.InputDevice
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -181,37 +184,25 @@ fun TrackListScreen(
 
             // Track count + Play All
             if (state.trackUris.isNotEmpty()) {
+                val hasDpad = InputDevice.getDeviceIds().any { id ->
+                    val dev = InputDevice.getDevice(id)
+                    dev != null && !dev.isVirtual &&
+                        dev.sources and InputDevice.SOURCE_DPAD != 0
+                }
+
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text = "${state.trackUris.size} tracks",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f),
-                        )
-                        FilledIconButton(
-                            onClick = {
-                                val shuffledTracks = state.trackUris.shuffled()
-                                playerViewModel.loadTrackFromContext(
-                                    shuffledTracks, 0, state.name,
-                                )
-                            },
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            modifier = Modifier.size(40.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Shuffle,
-                                contentDescription = "Shuffle",
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${state.trackUris.size} tracks",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (hasDpad) {
+                        val playAllFocus = remember { FocusRequester() }
+                        LaunchedEffect(Unit) { playAllFocus.requestFocus() }
+
+                        // Stacked buttons for D-pad navigation
                         Button(
                             onClick = {
                                 playerViewModel.loadTrackFromContext(
@@ -222,6 +213,10 @@ fun TrackListScreen(
                                 containerColor = MaterialTheme.colorScheme.primary,
                             ),
                             shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(playAllFocus)
+                                .focusDarken(),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -230,6 +225,76 @@ fun TrackListScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Play All")
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Button(
+                            onClick = {
+                                val shuffledTracks = state.trackUris.shuffled()
+                                playerViewModel.loadTrackFromContext(
+                                    shuffledTracks, 0, state.name,
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusDarken(),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shuffle,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Shuffle")
+                        }
+                    } else {
+                        // Inline buttons for touch
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            FilledIconButton(
+                                onClick = {
+                                    val shuffledTracks = state.trackUris.shuffled()
+                                    playerViewModel.loadTrackFromContext(
+                                        shuffledTracks, 0, state.name,
+                                    )
+                                },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                ),
+                                modifier = Modifier.size(40.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Button(
+                                onClick = {
+                                    playerViewModel.loadTrackFromContext(
+                                        state.trackUris, 0, state.name,
+                                    )
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Play All")
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -297,6 +362,7 @@ private fun TrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusHighlight()
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,

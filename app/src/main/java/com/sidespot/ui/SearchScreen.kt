@@ -275,6 +275,7 @@ private fun SearchResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusHighlight()
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -345,6 +346,7 @@ private fun AlbumResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusHighlight()
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -405,6 +407,7 @@ private fun ShowResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusHighlight()
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

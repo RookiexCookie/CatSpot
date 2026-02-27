@@ -102,6 +102,7 @@ private fun AlbumRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusHighlight()
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -38,6 +38,7 @@ fun MiniPlayer(
             .fillMaxWidth()
             .height(56.dp)
             .background(MaterialTheme.colorScheme.primaryContainer)
+            .focusHighlight()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
