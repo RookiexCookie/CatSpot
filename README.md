@@ -120,4 +120,4 @@ sidespot is not affiliated with or endorsed by Spotify. It uses a reverse-engine
 
 ## License
 
-TBD
+GPLv3. See [LICENSE](LICENSE) for details.
