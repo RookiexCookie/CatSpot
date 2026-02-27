@@ -26,6 +26,26 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 - **Audio focus** -- pauses for calls, ducks for notifications, resumes automatically
 - **Settings** -- audio quality (96/160/320 kbps), volume normalization, gapless playback, autoplay
 
+## Sidephone Only Features
+
+When a Sundial keypad is connected, sidespot enables full hardware navigation -- no touchscreen needed.
+
+| Control | Action |
+|---------|--------|
+| **Dial up / down** | Scroll lists; adjust volume on Now Playing |
+| **Dial left** | Previous track |
+| **Dial right** | Next track |
+| **Center glass** | Select focused item in lists; Play/Pause on Now Playing |
+| **Top-left (←)** | Navigate back |
+| **Top-right (→)** | (pass-through) |
+| **Bottom-left (Tab)** | Show / hide Now Playing |
+| **Bottom-right (Enter)** | Select focused item |
+
+Additional adaptations when a Sundial is detected:
+- **Focus indicators** on all list items (highlighted border)
+- **Stacked Play All / Shuffle buttons** in playlist and album views for easy D-pad access
+- **Auto-focus on Play All** when entering a playlist or album
+
 ## Requirements
 
 - Spotify Premium account
@@ -113,26 +133,6 @@ keyPassword=your-key-password
 - **JNI bridge**: Serializes data as JSON between Kotlin and Rust
 - **Audio pipeline**: librespot decodes OGG Vorbis to PCM, delivers samples via JNI callback to Android AudioTrack
 - **UI**: Jetpack Compose with Navigation, Material3, Coil for album art
-
-## Sidephone Only Features
-
-When a Sundial keypad is connected, sidespot enables full hardware navigation -- no touchscreen needed.
-
-| Control | Action |
-|---------|--------|
-| **Dial up / down** | Scroll lists; adjust volume on Now Playing |
-| **Dial left** | Previous track |
-| **Dial right** | Next track |
-| **Center glass** | Select focused item in lists; Play/Pause on Now Playing |
-| **Top-left (←)** | Navigate back |
-| **Top-right (→)** | (pass-through) |
-| **Bottom-left (Tab)** | Show / hide Now Playing |
-| **Bottom-right (Enter)** | Select focused item |
-
-Additional adaptations when a Sundial is detected:
-- **Focus indicators** on all list items (highlighted border)
-- **Stacked Play All / Shuffle buttons** in playlist and album views for easy D-pad access
-- **Auto-focus on Play All** when entering a playlist or album
 
 ## Current Limitations
 
