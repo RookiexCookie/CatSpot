@@ -128,7 +128,7 @@ fun QueueScreen(
             val metadata = queueState.trackMetadata[uri]
             Box(
                 modifier = Modifier
-                    .focusHighlight()
+                    .focusHighlight(onEnterKey = { selectedQueueIndex = index })
                     .combinedClickable(
                         onClick = { playerViewModel.skipToQueueItem(isUserQueue = true, index = index) },
                         onLongClick = { selectedQueueIndex = index },
@@ -220,6 +220,7 @@ fun QueueScreen(
             onDismissRequest = { selectedQueueIndex = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.dismissOnDpad { selectedQueueIndex = null },
         ) {
             when (sheetView) {
                 "actions" -> {
@@ -470,6 +471,7 @@ private fun QueueSheetActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusHighlight()
             .clickable(onClick = onClick)
             .padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

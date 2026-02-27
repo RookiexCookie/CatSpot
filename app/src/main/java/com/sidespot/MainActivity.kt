@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
+import android.view.ViewConfiguration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -26,7 +27,10 @@ class MainActivity : ComponentActivity() {
 
     var currentRoute: String? = null
     var onNowPlayingToggleRequested: (() -> Unit)? = null
-    var onBackRequested: (() -> Unit)? = null
+
+    // Center button long-press tracking
+    private var centerDownTime = 0L
+    private var centerLongPressed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,37 +87,71 @@ class MainActivity : ComponentActivity() {
         return true
     }
 
+    private fun dispatchSyntheticKey(keyCode: Int) {
+        val now = android.os.SystemClock.uptimeMillis()
+        val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0)
+        val up = KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0)
+        super.dispatchKeyEvent(down)
+        super.dispatchKeyEvent(up)
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
             Log.d("Sundial", "keyCode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)})")
         }
 
         // Tab key — intercept before Compose consumes it for focus traversal
         if (event.keyCode == KeyEvent.KEYCODE_TAB) {
-            if (event.action == KeyEvent.ACTION_DOWN) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
                 onNowPlayingToggleRequested?.invoke()
             }
             return true
         }
 
-        // Context-sensitive center button: Play/Pause on Now Playing, DPAD_CENTER elsewhere
+        // DPAD_LEFT / DPAD_RIGHT — translate to BACK so it dismisses bottom sheets and navigates back
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            val translated = KeyEvent(
+                event.downTime, event.eventTime, event.action,
+                KeyEvent.KEYCODE_BACK, event.repeatCount, event.metaState,
+                event.deviceId, event.scanCode, event.flags, event.source,
+            )
+            return super.dispatchKeyEvent(translated)
+        }
+
+        // Center button: Play/Pause on Now Playing; short press = select, long press = row actions elsewhere
         if (event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             if (currentRoute == Routes.NOW_PLAYING) {
-                if (event.action == KeyEvent.ACTION_DOWN) {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
                     val vm = playerViewModel ?: return true
                     if (vm.uiState.value.isPlaying) vm.pause() else vm.play()
                 }
                 return true
-            } else {
-                // Translate to DPAD_CENTER so Compose focus system clicks the focused item
-                val translated = KeyEvent(
-                    event.downTime, event.eventTime, event.action,
-                    KeyEvent.KEYCODE_DPAD_CENTER, event.repeatCount, event.metaState,
-                    event.deviceId, event.scanCode, event.flags, event.source,
-                )
-                return super.dispatchKeyEvent(translated)
+            }
+
+            // On list screens: hold all events, decide on release
+            when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    if (event.repeatCount == 0) {
+                        centerDownTime = event.eventTime
+                        centerLongPressed = false
+                    } else if (!centerLongPressed) {
+                        val held = event.eventTime - centerDownTime
+                        if (held >= ViewConfiguration.getLongPressTimeout()) {
+                            centerLongPressed = true
+                            dispatchSyntheticKey(KeyEvent.KEYCODE_ENTER)
+                        }
+                    }
+                    return true
+                }
+                KeyEvent.ACTION_UP -> {
+                    if (!centerLongPressed) {
+                        dispatchSyntheticKey(KeyEvent.KEYCODE_DPAD_CENTER)
+                    }
+                    return true
+                }
             }
         }
+
         return super.dispatchKeyEvent(event)
     }
 
@@ -135,11 +173,6 @@ class MainActivity : ComponentActivity() {
             }
             KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                 playerViewModel?.pause(); true
-            }
-
-            // DPAD_LEFT — navigate back
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                onBackRequested?.invoke(); true
             }
 
             // D-pad up/down — volume on Now Playing, focus traversal elsewhere

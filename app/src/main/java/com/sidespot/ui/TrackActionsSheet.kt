@@ -69,6 +69,7 @@ fun TrackActionsSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.dismissOnDpad(onDismiss),
     ) {
         when (view) {
             SheetView.Actions -> {
@@ -235,6 +236,7 @@ private fun SheetActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusHighlight()
             .clickable(onClick = onClick)
             .padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

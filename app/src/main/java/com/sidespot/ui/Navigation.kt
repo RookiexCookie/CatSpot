@@ -137,13 +137,9 @@ fun SidespotNavigation(
                     }
                 }
             }
-            mainActivity.onBackRequested = {
-                navController.popBackStack()
-            }
         }
         onDispose {
             mainActivity?.onNowPlayingToggleRequested = null
-            mainActivity?.onBackRequested = null
         }
     }
 

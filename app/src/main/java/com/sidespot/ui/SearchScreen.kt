@@ -275,7 +275,7 @@ private fun SearchResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .focusHighlight()
+            .focusHighlight(onEnterKey = onLongClick)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,

@@ -362,7 +362,7 @@ private fun TrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .focusHighlight()
+            .focusHighlight(onEnterKey = onLongClick)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
