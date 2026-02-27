@@ -2,8 +2,11 @@ package com.sidespot.api
 
 import com.sidespot.auth.AuthManager
 import com.sidespot.bridge.AlbumSummary
+import com.sidespot.bridge.ArtistSummary
 import com.sidespot.bridge.EpisodeSummary
 import com.sidespot.bridge.ShowSummary
+import com.sidespot.bridge.TrackInfo
+import com.sidespot.viewmodel.AlbumResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -19,6 +22,8 @@ sealed class CreatePlaylistResult {
     data class Success(val playlistUri: String) : CreatePlaylistResult()
     data class Error(val message: String) : CreatePlaylistResult()
 }
+
+data class SearchPage<T>(val items: List<T>, val total: Int)
 
 class SpotifyWebApi(private val authManager: AuthManager) {
 
@@ -305,22 +310,23 @@ class SpotifyWebApi(private val authManager: AuthManager) {
      * Search for shows (podcasts).
      * GET /v1/search?type=show&q={query}&limit=10
      */
-    suspend fun searchShows(query: String): List<ShowSummary> = withContext(Dispatchers.IO) {
-        val token = authManager.getValidAccessToken() ?: return@withContext emptyList()
+    suspend fun searchShows(query: String, offset: Int = 0): SearchPage<ShowSummary> = withContext(Dispatchers.IO) {
+        val token = authManager.getValidAccessToken() ?: return@withContext SearchPage(emptyList(), 0)
         val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-        val conn = URL("$BASE_URL/search?type=show&q=$encoded&limit=10").openConnection() as HttpURLConnection
+        val conn = URL("$BASE_URL/search?type=show&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection
         try {
             conn.setRequestProperty("Authorization", "Bearer $token")
             if (conn.responseCode !in 200..299) {
                 val err = conn.errorStream?.bufferedReader()?.readText()
                 android.util.Log.w("SpotifyWebApi", "searchShows HTTP ${conn.responseCode}: $err")
-                return@withContext emptyList()
+                return@withContext SearchPage(emptyList(), 0)
             }
             val body = conn.inputStream.bufferedReader().readText()
             val showsObj = JSONObject(body).optJSONObject("shows")
-                ?: return@withContext emptyList()
+                ?: return@withContext SearchPage(emptyList(), 0)
             val items = showsObj.getJSONArray("items")
-            (0 until items.length()).mapNotNull { i ->
+            val total = showsObj.optInt("total", 0)
+            val results = (0 until items.length()).mapNotNull { i ->
                 val show = items.optJSONObject(i) ?: return@mapNotNull null
                 val images = show.optJSONArray("images")
                 val imageUrl = if (images != null && images.length() > 0)
@@ -332,9 +338,131 @@ class SpotifyWebApi(private val authManager: AuthManager) {
                     imageUrl = imageUrl,
                 )
             }
+            SearchPage(results, total)
         } catch (e: Exception) {
             android.util.Log.e("SpotifyWebApi", "searchShows failed", e)
-            emptyList()
+            SearchPage(emptyList(), 0)
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /**
+     * Search for tracks.
+     * GET /v1/search?type=track&q={query}&limit=10
+     */
+    suspend fun searchTracks(query: String, offset: Int = 0): SearchPage<TrackInfo> = withContext(Dispatchers.IO) {
+        val token = authManager.getValidAccessToken() ?: return@withContext SearchPage(emptyList(), 0)
+        val encoded = java.net.URLEncoder.encode(query, "UTF-8")
+        val conn = URL("$BASE_URL/search?type=track&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection
+        try {
+            conn.setRequestProperty("Authorization", "Bearer $token")
+            if (conn.responseCode !in 200..299) {
+                val err = conn.errorStream?.bufferedReader()?.readText()
+                android.util.Log.w("SpotifyWebApi", "searchTracks HTTP ${conn.responseCode}: $err")
+                return@withContext SearchPage(emptyList(), 0)
+            }
+            val body = conn.inputStream.bufferedReader().readText()
+            val tracksObj = JSONObject(body).optJSONObject("tracks")
+                ?: run {
+                    android.util.Log.w("SpotifyWebApi", "searchTracks: no 'tracks' key in response")
+                    return@withContext SearchPage(emptyList(), 0)
+                }
+            val items = tracksObj.getJSONArray("items")
+            val total = tracksObj.optInt("total", 0)
+            android.util.Log.d("SpotifyWebApi", "searchTracks: got ${items.length()} items, total=$total")
+            val results = (0 until items.length()).mapNotNull { i ->
+                try {
+                    val track = items.optJSONObject(i) ?: return@mapNotNull null
+                    val artistsArr = track.optJSONArray("artists")
+                    val artists = if (artistsArr != null) {
+                        (0 until artistsArr.length()).mapNotNull { j ->
+                            val a = artistsArr.optJSONObject(j) ?: return@mapNotNull null
+                            ArtistSummary(
+                                uri = a.optString("uri", ""),
+                                name = a.optString("name", ""),
+                            )
+                        }
+                    } else emptyList()
+                    val album = track.optJSONObject("album")
+                    val albumImages = album?.optJSONArray("images")
+                    val albumArtUrl = if (albumImages != null && albumImages.length() > 0)
+                        albumImages.getJSONObject(0).getString("url") else null
+                    TrackInfo(
+                        uri = track.optString("uri", "") .takeIf { it.isNotBlank() }
+                            ?: return@mapNotNull null,
+                        name = track.optString("name", ""),
+                        artists = artists,
+                        albumName = album?.optString("name", "") ?: "",
+                        albumUri = album?.optString("uri", "") ?: "",
+                        albumArtUrl = albumArtUrl,
+                        durationMs = track.optInt("duration_ms", 0),
+                        trackNumber = track.optInt("track_number", 0),
+                        discNumber = track.optInt("disc_number", 0),
+                        isExplicit = track.optBoolean("explicit", false),
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("SpotifyWebApi", "Failed to parse track item $i", e)
+                    null
+                }
+            }
+            SearchPage(results, total)
+        } catch (e: Exception) {
+            android.util.Log.e("SpotifyWebApi", "searchTracks failed", e)
+            SearchPage(emptyList(), 0)
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /**
+     * Search for albums.
+     * GET /v1/search?type=album&q={query}&limit=10
+     */
+    suspend fun searchAlbums(query: String, offset: Int = 0): SearchPage<AlbumResult> = withContext(Dispatchers.IO) {
+        val token = authManager.getValidAccessToken() ?: return@withContext SearchPage(emptyList(), 0)
+        val encoded = java.net.URLEncoder.encode(query, "UTF-8")
+        val conn = URL("$BASE_URL/search?type=album&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection
+        try {
+            conn.setRequestProperty("Authorization", "Bearer $token")
+            if (conn.responseCode !in 200..299) {
+                val err = conn.errorStream?.bufferedReader()?.readText()
+                android.util.Log.w("SpotifyWebApi", "searchAlbums HTTP ${conn.responseCode}: $err")
+                return@withContext SearchPage(emptyList(), 0)
+            }
+            val body = conn.inputStream.bufferedReader().readText()
+            val albumsObj = JSONObject(body).optJSONObject("albums")
+                ?: return@withContext SearchPage(emptyList(), 0)
+            val items = albumsObj.getJSONArray("items")
+            val total = albumsObj.optInt("total", 0)
+            val results = (0 until items.length()).mapNotNull { i ->
+                try {
+                    val album = items.optJSONObject(i) ?: return@mapNotNull null
+                    val artistsArr = album.optJSONArray("artists")
+                    val artistName = if (artistsArr != null) {
+                        (0 until artistsArr.length()).mapNotNull { j ->
+                            artistsArr.optJSONObject(j)?.optString("name")
+                        }.joinToString(", ")
+                    } else ""
+                    val images = album.optJSONArray("images")
+                    val imageUrl = if (images != null && images.length() > 0)
+                        images.getJSONObject(0).getString("url") else null
+                    AlbumResult(
+                        uri = album.optString("uri", "").takeIf { it.isNotBlank() }
+                            ?: return@mapNotNull null,
+                        name = album.optString("name", ""),
+                        artistName = artistName,
+                        albumArtUrl = imageUrl,
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("SpotifyWebApi", "Failed to parse album item $i", e)
+                    null
+                }
+            }
+            SearchPage(results, total)
+        } catch (e: Exception) {
+            android.util.Log.e("SpotifyWebApi", "searchAlbums failed", e)
+            SearchPage(emptyList(), 0)
         } finally {
             conn.disconnect()
         }

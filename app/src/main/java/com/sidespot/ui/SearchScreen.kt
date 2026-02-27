@@ -100,7 +100,7 @@ fun SearchScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (state.isSearching && state.tracks.isEmpty() && state.shows.isEmpty()) {
+        if (state.isSearching && state.tracks.isEmpty() && state.albums.isEmpty() && state.shows.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -113,7 +113,7 @@ fun SearchScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
             )
-        } else if (state.tracks.isEmpty() && state.shows.isEmpty() && state.query.isNotBlank() && !state.isSearching) {
+        } else if (state.tracks.isEmpty() && state.albums.isEmpty() && state.shows.isEmpty() && state.query.isNotBlank() && !state.isSearching) {
             Text(
                 text = "No results",
                 style = MaterialTheme.typography.bodyMedium,
@@ -121,9 +121,51 @@ fun SearchScreen(
             )
         } else {
             LazyColumn {
+                // Songs section
+                if (state.tracks.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Songs",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+
+                    val displayedTracks = state.tracks.take(state.tracksDisplayLimit)
+                    itemsIndexed(displayedTracks, key = { _, track -> track.uri }) { index, track ->
+                        SearchResultRow(
+                            track = track,
+                            onClick = {
+                                playerViewModel.loadTrackFromContext(
+                                    state.trackUris, index, "Search: ${state.query}",
+                                )
+                            },
+                            onLongClick = {
+                                selectedTrackUri = track.uri
+                            },
+                        )
+                    }
+
+                    if (state.hasMoreTracks) {
+                        item {
+                            Text(
+                                text = "Show More...",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { searchViewModel.showMoreTracks() }
+                                    .padding(vertical = 12.dp),
+                            )
+                        }
+                    }
+                }
+
                 // Albums section
                 if (state.albums.isNotEmpty()) {
                     item {
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Albums",
                             style = MaterialTheme.typography.labelLarge,
@@ -131,11 +173,27 @@ fun SearchScreen(
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
                     }
-                    itemsIndexed(state.albums, key = { _, album -> album.uri }) { _, album ->
+
+                    val displayedAlbums = state.albums.take(state.albumsDisplayLimit)
+                    itemsIndexed(displayedAlbums, key = { _, album -> album.uri }) { _, album ->
                         AlbumResultRow(
                             album = album,
                             onClick = { onAlbumClick(album.uri) },
                         )
+                    }
+
+                    if (state.hasMoreAlbums) {
+                        item {
+                            Text(
+                                text = "Show More...",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { searchViewModel.showMoreAlbums() }
+                                    .padding(vertical = 12.dp),
+                            )
+                        }
                     }
                 }
 
@@ -150,42 +208,31 @@ fun SearchScreen(
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
                     }
-                    itemsIndexed(state.shows, key = { _, show -> show.uri }) { _, show ->
+
+                    val displayedShows = state.shows.take(state.showsDisplayLimit)
+                    itemsIndexed(displayedShows, key = { _, show -> show.uri }) { _, show ->
                         ShowResultRow(
                             show = show,
                             onClick = { onShowClick(show.uri) },
                         )
                     }
-                }
 
-                // Songs section
-                if (state.tracks.isNotEmpty()) {
-                    item {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Songs",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(vertical = 4.dp),
-                        )
+                    if (state.hasMoreShows) {
+                        item {
+                            Text(
+                                text = "Show More...",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { searchViewModel.showMoreShows() }
+                                    .padding(vertical = 12.dp),
+                            )
+                        }
                     }
                 }
 
-                itemsIndexed(state.tracks, key = { _, track -> track.uri }) { index, track ->
-                    SearchResultRow(
-                        track = track,
-                        onClick = {
-                            playerViewModel.loadTrackFromContext(
-                                state.trackUris, index, "Search: ${state.query}",
-                            )
-                        },
-                        onLongClick = {
-                            selectedTrackUri = track.uri
-                        },
-                    )
-                }
-
-                if (state.isSearching) {
+                if (state.isSearching || state.isLoadingMore) {
                     item {
                         Box(
                             modifier = Modifier
