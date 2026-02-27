@@ -4,6 +4,15 @@ A lightweight, GMS-free Spotify client for the [Sidephone SP-01](https://sidepho
 
 Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a minimal [Jetpack Compose](https://developer.android.com/jetpack/compose) UI optimized for 480x640 displays.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/library.png" width="180" alt="Library">
+  <img src="screenshots/search.png" width="180" alt="Search">
+  <img src="screenshots/queue.png" width="180" alt="Queue">
+  <img src="screenshots/now_playing.png" width="180" alt="Now Playing">
+</p>
+
 ## Features
 
 - **No Google Play Services required** -- runs on degoogled and minimal Android devices
@@ -23,7 +32,7 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 
 ## Install
 
-### From GitHub Releases
+### From Releases
 
 Download the latest APK from [Releases](https://codeberg.org/jtaekman/sidespot/releases) and sideload it onto your device:
 
