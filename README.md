@@ -1,4 +1,4 @@
-# sidespot
+# Sidespot
 
 A lightweight, GMS-free Spotify client for the [Sidephone SP-01](https://sidephone.com) and similar small-screen Android devices.
 
