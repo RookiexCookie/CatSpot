@@ -50,9 +50,15 @@ import coil.request.ImageRequest
 import com.sidespot.api.ApiResult
 import com.sidespot.bridge.ShowSummary
 import com.sidespot.viewmodel.LibraryViewModel
+import androidx.compose.foundation.focusGroup
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun SavedShowsScreen(
     libraryViewModel: LibraryViewModel,
@@ -63,15 +69,30 @@ fun SavedShowsScreen(
     val state by libraryViewModel.uiState.collectAsState()
     var selectedShowUri by remember { mutableStateOf<String?>(null) }
     var feedbackText by remember { mutableStateOf<String?>(null) }
+    val newEpisodesFocus = remember { FocusRequester() }
+    var newEpisodesFocusReady by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         libraryViewModel.loadSavedShows()
     }
 
+    LaunchedEffect(newEpisodesFocusReady) {
+        if (newEpisodesFocusReady) {
+            newEpisodesFocus.requestFocus()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .focusProperties {
+                enter = {
+                    if (newEpisodesFocusReady) newEpisodesFocus
+                    else FocusRequester.Default
+                }
+            }
+            .focusGroup(),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -111,9 +132,14 @@ fun SavedShowsScreen(
         } else {
             LazyColumn {
                 item {
+                    DisposableEffect(Unit) {
+                        newEpisodesFocusReady = true
+                        onDispose { newEpisodesFocusReady = false }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusRequester(newEpisodesFocus)
                             .focusHighlight()
                             .clickable(onClick = onNewEpisodesClick)
                             .padding(vertical = 8.dp),

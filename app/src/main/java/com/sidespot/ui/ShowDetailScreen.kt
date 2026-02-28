@@ -39,9 +39,15 @@ import androidx.compose.ui.unit.dp
 import com.sidespot.api.ApiResult
 import com.sidespot.bridge.EpisodeSummary
 import com.sidespot.viewmodel.LibraryViewModel
+import androidx.compose.foundation.focusGroup
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import com.sidespot.viewmodel.PlayerViewModel
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun ShowDetailScreen(
     showUri: String,
@@ -52,6 +58,8 @@ fun ShowDetailScreen(
 ) {
     val state by libraryViewModel.uiState.collectAsState()
     var saveShowFeedback by remember { mutableStateOf<String?>(null) }
+    val firstContentFocus = remember { FocusRequester() }
+    var firstContentFocusReady by remember { mutableStateOf(false) }
     val isShowSaved = remember(state.shows, showUri) {
         state.shows.any { it.uri == showUri }
     }
@@ -72,10 +80,23 @@ fun ShowDetailScreen(
         saveShowFeedback = null
     }
 
+    LaunchedEffect(firstContentFocusReady) {
+        if (firstContentFocusReady) {
+            firstContentFocus.requestFocus()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .focusProperties {
+                enter = {
+                    if (firstContentFocusReady) firstContentFocus
+                    else FocusRequester.Default
+                }
+            }
+            .focusGroup(),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -98,6 +119,10 @@ fun ShowDetailScreen(
 
         // Save Show button (hidden if already saved)
         if (!isShowSaved) {
+            DisposableEffect(Unit) {
+                firstContentFocusReady = true
+                onDispose { firstContentFocusReady = false }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
@@ -114,6 +139,7 @@ fun ShowDetailScreen(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRequester(firstContentFocus)
                     .focusDarken(),
             ) {
                 Icon(
@@ -137,8 +163,15 @@ fun ShowDetailScreen(
         } else {
             LazyColumn {
                 itemsIndexed(state.episodes, key = { _, episode -> episode.uri }) { index, episode ->
+                    if (index == 0 && isShowSaved) {
+                        DisposableEffect(Unit) {
+                            firstContentFocusReady = true
+                            onDispose { firstContentFocusReady = false }
+                        }
+                    }
                     EpisodeRow(
                         episode = episode,
+                        modifier = if (index == 0 && isShowSaved) Modifier.focusRequester(firstContentFocus) else Modifier,
                         onClick = {
                             playerViewModel.cacheEpisodeMetadata(state.episodes, showName)
                             val episodeUris = state.episodes.map { it.uri }
@@ -161,12 +194,14 @@ fun ShowDetailScreen(
 @Composable
 private fun EpisodeRow(
     episode: EpisodeSummary,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .focusHighlight(onEnterKey = onLongClick)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,

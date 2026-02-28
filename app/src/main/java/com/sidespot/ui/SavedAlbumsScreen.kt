@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -49,9 +49,15 @@ import coil.request.ImageRequest
 import com.sidespot.api.ApiResult
 import com.sidespot.bridge.AlbumSummary
 import com.sidespot.viewmodel.LibraryViewModel
+import androidx.compose.foundation.focusGroup
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun SavedAlbumsScreen(
     libraryViewModel: LibraryViewModel,
@@ -61,15 +67,30 @@ fun SavedAlbumsScreen(
     val state by libraryViewModel.uiState.collectAsState()
     var selectedAlbumUri by remember { mutableStateOf<String?>(null) }
     var feedbackText by remember { mutableStateOf<String?>(null) }
+    val firstAlbumFocus = remember { FocusRequester() }
+    var firstAlbumFocusReady by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         libraryViewModel.loadSavedAlbums()
     }
 
+    LaunchedEffect(firstAlbumFocusReady) {
+        if (firstAlbumFocusReady) {
+            firstAlbumFocus.requestFocus()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .focusProperties {
+                enter = {
+                    if (firstAlbumFocusReady) firstAlbumFocus
+                    else FocusRequester.Default
+                }
+            }
+            .focusGroup(),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -97,9 +118,16 @@ fun SavedAlbumsScreen(
             }
         } else {
             LazyColumn {
-                items(state.albums, key = { it.uri }) { album ->
+                itemsIndexed(state.albums, key = { _, album -> album.uri }) { index, album ->
+                    if (index == 0) {
+                        DisposableEffect(Unit) {
+                            firstAlbumFocusReady = true
+                            onDispose { firstAlbumFocusReady = false }
+                        }
+                    }
                     AlbumRow(
                         album = album,
+                        modifier = if (index == 0) Modifier.focusRequester(firstAlbumFocus) else Modifier,
                         onClick = { onAlbumClick(album.uri) },
                         onLongClick = { selectedAlbumUri = album.uri },
                     )
@@ -180,12 +208,13 @@ fun SavedAlbumsScreen(
 @Composable
 private fun AlbumRow(
     album: AlbumSummary,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     val context = LocalContext.current
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .focusHighlight(onEnterKey = onLongClick)
             .combinedClickable(

@@ -36,9 +36,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sidespot.bridge.EpisodeSummary
 import com.sidespot.viewmodel.LibraryViewModel
+import androidx.compose.foundation.focusGroup
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.focusProperties
 import com.sidespot.viewmodel.PlayerViewModel
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun NewEpisodesScreen(
     libraryViewModel: LibraryViewModel,
@@ -56,6 +61,14 @@ fun NewEpisodesScreen(
     }
     var focusTargetIndex by remember { mutableIntStateOf(-1) }
     val focusRequester = remember { FocusRequester() }
+    val firstEpisodeFocus = remember { FocusRequester() }
+    var firstEpisodeFocusReady by remember { mutableStateOf(false) }
+
+    LaunchedEffect(firstEpisodeFocusReady) {
+        if (firstEpisodeFocusReady) {
+            firstEpisodeFocus.requestFocus()
+        }
+    }
 
     LaunchedEffect(focusTargetIndex) {
         if (focusTargetIndex >= 0) {
@@ -67,7 +80,14 @@ fun NewEpisodesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .focusProperties {
+                enter = {
+                    if (firstEpisodeFocusReady) firstEpisodeFocus
+                    else FocusRequester.Default
+                }
+            }
+            .focusGroup(),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -107,8 +127,16 @@ fun NewEpisodesScreen(
         } else {
             LazyColumn {
                 itemsIndexed(displayedEpisodes, key = { _, ep -> ep.uri }) { index, episode ->
+                    if (index == 0) {
+                        DisposableEffect(Unit) {
+                            firstEpisodeFocusReady = true
+                            onDispose { firstEpisodeFocusReady = false }
+                        }
+                    }
+                    val baseModifier = if (index == 0)
+                        Modifier.focusRequester(firstEpisodeFocus) else Modifier
                     val rowModifier = if (index == focusTargetIndex)
-                        Modifier.focusRequester(focusRequester) else Modifier
+                        baseModifier.focusRequester(focusRequester) else baseModifier
                     NewEpisodeRow(
                         episode = episode,
                         modifier = rowModifier,
