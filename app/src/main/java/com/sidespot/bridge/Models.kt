@@ -155,6 +155,7 @@ data class EpisodeSummary(
     @SerialName("duration_ms") val durationMs: Int,
     @SerialName("release_date") val releaseDate: String,
     @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("show_name") val showName: String? = null,
 ) {
     companion object {
         fun listFromJson(jsonString: String): List<EpisodeSummary>? = try {

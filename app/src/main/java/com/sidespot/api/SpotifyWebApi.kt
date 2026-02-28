@@ -2,6 +2,7 @@ package com.sidespot.api
 
 import com.sidespot.auth.AuthManager
 import com.sidespot.bridge.ArtistSummary
+import com.sidespot.bridge.EpisodeSummary
 import com.sidespot.bridge.ShowSummary
 import com.sidespot.bridge.TrackInfo
 import com.sidespot.viewmodel.AlbumResult
@@ -357,5 +358,60 @@ class SpotifyWebApi(private val authManager: AuthManager) {
         } finally {
             conn.disconnect()
         }
+    }
+
+    /**
+     * Fetch unplayed episodes across all saved shows.
+     * For each show, calls GET /v1/shows/{show_id}/episodes?limit=10
+     * and filters to episodes where resume_point.fully_played == false.
+     * Results are sorted by release_date descending (newest first).
+     */
+    suspend fun getUnplayedEpisodesForShows(shows: List<ShowSummary>): List<EpisodeSummary> = withContext(Dispatchers.IO) {
+        val token = authManager.getValidAccessToken() ?: return@withContext emptyList()
+        val allEpisodes = mutableListOf<EpisodeSummary>()
+
+        for (show in shows) {
+            val showId = show.uri.removePrefix("spotify:show:")
+            val conn = URL("$BASE_URL/shows/$showId/episodes?limit=10")
+                .openConnection() as HttpURLConnection
+            try {
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                if (conn.responseCode !in 200..299) {
+                    val err = conn.errorStream?.bufferedReader()?.readText()
+                    android.util.Log.w("SpotifyWebApi", "getShowEpisodes HTTP ${conn.responseCode}: $err")
+                    continue
+                }
+                val body = conn.inputStream.bufferedReader().readText()
+                val json = JSONObject(body)
+                val items = json.optJSONArray("items") ?: continue
+
+                for (i in 0 until items.length()) {
+                    val ep = items.optJSONObject(i) ?: continue
+                    val resumePoint = ep.optJSONObject("resume_point")
+                    val fullyPlayed = resumePoint?.optBoolean("fully_played", false) ?: false
+                    if (fullyPlayed) continue
+
+                    val images = ep.optJSONArray("images")
+                    val imageUrl = if (images != null && images.length() > 0)
+                        images.getJSONObject(0).getString("url") else null
+
+                    allEpisodes.add(EpisodeSummary(
+                        uri = ep.getString("uri"),
+                        name = ep.getString("name"),
+                        description = ep.optString("description", ""),
+                        durationMs = ep.optInt("duration_ms", 0),
+                        releaseDate = ep.optString("release_date", ""),
+                        imageUrl = imageUrl,
+                        showName = show.name,
+                    ))
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SpotifyWebApi", "getShowEpisodes failed for ${show.name}", e)
+            } finally {
+                conn.disconnect()
+            }
+        }
+
+        allEpisodes.sortedByDescending { it.releaseDate }
     }
 }

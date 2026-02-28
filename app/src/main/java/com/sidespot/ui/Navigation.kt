@@ -64,6 +64,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val SAVED_ALBUMS = "saved_albums"
     const val SAVED_SHOWS = "saved_shows"
+    const val NEW_EPISODES = "new_episodes"
     const val SHOW_DETAIL = "show_detail/{uri}/{name}"
 
     fun trackList(uri: String): String = "track_list/${URLEncoder.encode(uri, "UTF-8")}"
@@ -370,6 +371,17 @@ fun SidespotNavigation(
                                 val name = show?.name ?: "Podcast"
                                 navController.navigate(Routes.showDetail(uri, name))
                             },
+                            onNewEpisodesClick = {
+                                navController.navigate(Routes.NEW_EPISODES)
+                            },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+
+                    composable(Routes.NEW_EPISODES) {
+                        NewEpisodesScreen(
+                            libraryViewModel = libraryViewModel,
+                            playerViewModel = playerViewModel,
                             onBack = { navController.popBackStack() },
                         )
                     }

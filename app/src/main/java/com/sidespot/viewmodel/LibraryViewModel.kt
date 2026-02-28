@@ -37,6 +37,10 @@ data class LibraryUiState(
     val isLoadingAlbums: Boolean = false,
     val isLoadingShows: Boolean = false,
     val isLoadingEpisodes: Boolean = false,
+    val newEpisodes: List<EpisodeSummary> = emptyList(),
+    val isLoadingNewEpisodes: Boolean = false,
+    val newEpisodesDisplayLimit: Int = 5,
+    val hasMoreNewEpisodes: Boolean = false,
     val error: String? = null,
 )
 
@@ -165,6 +169,42 @@ class LibraryViewModel : ViewModel() {
                 emptyList()
             }
             _uiState.update { it.copy(episodes = episodes, isLoadingEpisodes = false) }
+        }
+    }
+
+    fun loadNewEpisodes() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isLoadingNewEpisodes = true) }
+            // Ensure shows are loaded first
+            if (_uiState.value.shows.isEmpty()) {
+                val json = NativeBridge.metadataGetSavedShows()
+                val shows = if (json != null && !json.startsWith("{\"error\"")) {
+                    ShowSummary.listFromJson(json) ?: emptyList()
+                } else {
+                    emptyList()
+                }
+                _uiState.update { it.copy(shows = shows) }
+            }
+            val shows = _uiState.value.shows
+            val episodes = api?.getUnplayedEpisodesForShows(shows) ?: emptyList()
+            _uiState.update {
+                it.copy(
+                    newEpisodes = episodes,
+                    isLoadingNewEpisodes = false,
+                    newEpisodesDisplayLimit = 5,
+                    hasMoreNewEpisodes = episodes.size > 5,
+                )
+            }
+        }
+    }
+
+    fun showMoreNewEpisodes() {
+        _uiState.update {
+            val newLimit = it.newEpisodesDisplayLimit + 5
+            it.copy(
+                newEpisodesDisplayLimit = newLimit,
+                hasMoreNewEpisodes = newLimit < it.newEpisodes.size,
+            )
         }
     }
 

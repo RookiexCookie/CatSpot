@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,6 +57,7 @@ import kotlinx.coroutines.delay
 fun SavedShowsScreen(
     libraryViewModel: LibraryViewModel,
     onShowClick: (uri: String) -> Unit,
+    onNewEpisodesClick: () -> Unit,
     onBack: () -> Unit,
 ) {
     val state by libraryViewModel.uiState.collectAsState()
@@ -108,6 +110,37 @@ fun SavedShowsScreen(
             }
         } else {
             LazyColumn {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusHighlight()
+                            .clickable(onClick = onNewEpisodesClick)
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FiberNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "New Episodes",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                }
                 items(state.shows, key = { it.uri }) { show ->
                     ShowRow(
                         show = show,

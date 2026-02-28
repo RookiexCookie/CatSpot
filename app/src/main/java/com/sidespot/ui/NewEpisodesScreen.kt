@@ -1,6 +1,7 @@
 package com.sidespot.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,16 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.LibraryAdd
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,47 +25,43 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.sidespot.api.ApiResult
 import com.sidespot.bridge.EpisodeSummary
 import com.sidespot.viewmodel.LibraryViewModel
 import com.sidespot.viewmodel.PlayerViewModel
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ShowDetailScreen(
-    showUri: String,
-    showName: String,
+fun NewEpisodesScreen(
     libraryViewModel: LibraryViewModel,
     playerViewModel: PlayerViewModel,
     onBack: () -> Unit,
 ) {
     val state by libraryViewModel.uiState.collectAsState()
-    var saveShowFeedback by remember { mutableStateOf<String?>(null) }
-    val isShowSaved = remember(state.shows, showUri) {
-        state.shows.any { it.uri == showUri }
-    }
 
-    LaunchedEffect(showUri) {
-        libraryViewModel.loadShowEpisodes(showUri)
-    }
-
-    // Load saved shows if not yet loaded so we can derive saved status
     LaunchedEffect(Unit) {
-        if (state.shows.isEmpty() && !state.isLoadingShows) {
-            libraryViewModel.loadSavedShows()
-        }
+        libraryViewModel.loadNewEpisodes()
     }
 
-    // Reset feedback text when saved status changes
-    LaunchedEffect(isShowSaved) {
-        saveShowFeedback = null
+    val displayedEpisodes = remember(state.newEpisodes, state.newEpisodesDisplayLimit) {
+        state.newEpisodes.take(state.newEpisodesDisplayLimit)
+    }
+    var focusTargetIndex by remember { mutableIntStateOf(-1) }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(focusTargetIndex) {
+        if (focusTargetIndex >= 0) {
+            focusRequester.requestFocus()
+            focusTargetIndex = -1
+        }
     }
 
     Column(
@@ -88,69 +80,73 @@ fun ShowDetailScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = showName,
+                text = "New Episodes",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
 
-        // Save Show button (hidden if already saved)
-        if (!isShowSaved) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = {
-                    libraryViewModel.saveShow(showUri) { result ->
-                        saveShowFeedback = when (result) {
-                            is ApiResult.Success -> "Saved to Library"
-                            is ApiResult.Error -> "Error: ${result.message}"
-                        }
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                ),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusDarken(),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LibraryAdd,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(saveShowFeedback ?: "Save Show")
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (state.isLoadingEpisodes && state.episodes.isEmpty()) {
+        if (state.isLoadingNewEpisodes && state.newEpisodes.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
+        } else if (!state.isLoadingNewEpisodes && state.newEpisodes.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "No New Episodes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         } else {
             LazyColumn {
-                itemsIndexed(state.episodes, key = { _, episode -> episode.uri }) { index, episode ->
-                    EpisodeRow(
+                itemsIndexed(displayedEpisodes, key = { _, ep -> ep.uri }) { index, episode ->
+                    val rowModifier = if (index == focusTargetIndex)
+                        Modifier.focusRequester(focusRequester) else Modifier
+                    NewEpisodeRow(
                         episode = episode,
+                        modifier = rowModifier,
                         onClick = {
-                            playerViewModel.cacheEpisodeMetadata(state.episodes, showName)
-                            val episodeUris = state.episodes.map { it.uri }
+                            playerViewModel.cacheEpisodeMetadata(
+                                state.newEpisodes,
+                                episode.showName ?: "Podcast",
+                            )
+                            val episodeUris = state.newEpisodes.map { it.uri }
                             playerViewModel.loadTrackFromContext(
-                                episodeUris, index, showName,
+                                episodeUris, index, "New Episodes",
                             )
                         },
                         onLongClick = {
-                            playerViewModel.cacheEpisodeMetadata(listOf(episode), showName)
+                            playerViewModel.cacheEpisodeMetadata(
+                                listOf(episode),
+                                episode.showName ?: "Podcast",
+                            )
                             playerViewModel.addToQueue(episode.uri)
                         },
                     )
+                }
+
+                if (state.hasMoreNewEpisodes) {
+                    item {
+                        Text(
+                            text = "Show More...",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    focusTargetIndex = displayedEpisodes.lastIndex
+                                    libraryViewModel.showMoreNewEpisodes()
+                                }
+                                .padding(vertical = 12.dp),
+                        )
+                    }
                 }
             }
         }
@@ -159,20 +155,32 @@ fun ShowDetailScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EpisodeRow(
+private fun NewEpisodeRow(
     episode: EpisodeSummary,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .focusHighlight(onEnterKey = onLongClick)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
             .padding(vertical = 10.dp),
     ) {
+        if (!episode.showName.isNullOrBlank()) {
+            Text(
+                text = episode.showName,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+        }
         Text(
             text = episode.name,
             style = MaterialTheme.typography.bodyMedium,
@@ -206,16 +214,5 @@ private fun EpisodeRow(
                 )
             }
         }
-    }
-}
-
-internal fun formatEpisodeDuration(ms: Int): String {
-    val totalMinutes = ms / 60000
-    return if (totalMinutes >= 60) {
-        val hours = totalMinutes / 60
-        val minutes = totalMinutes % 60
-        "${hours}h ${minutes}m"
-    } else {
-        "${totalMinutes} min"
     }
 }
