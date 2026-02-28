@@ -308,6 +308,11 @@ fun SidespotNavigation(
                             onGoToAlbum = { albumUri ->
                                 navController.navigate(Routes.trackList(albumUri))
                             },
+                            onPlayStarted = {
+                                navController.navigate(Routes.NOW_PLAYING) {
+                                    launchSingleTop = true
+                                }
+                            },
                         )
                     }
 

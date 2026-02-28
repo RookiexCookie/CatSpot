@@ -66,6 +66,7 @@ fun TrackListScreen(
     libraryViewModel: LibraryViewModel = viewModel(),
     onBack: () -> Unit,
     onGoToAlbum: (String) -> Unit = {},
+    onPlayStarted: () -> Unit = {},
     trackListViewModel: TrackListViewModel = viewModel(key = uri),
 ) {
     val state by trackListViewModel.uiState.collectAsState()
@@ -236,6 +237,7 @@ fun TrackListScreen(
                                 playerViewModel.loadTrackFromContext(
                                     state.trackUris, 0, state.name,
                                 )
+                                onPlayStarted()
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -261,6 +263,7 @@ fun TrackListScreen(
                                 playerViewModel.loadTrackFromContext(
                                     shuffledTracks, 0, state.name,
                                 )
+                                onPlayStarted()
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -347,6 +350,7 @@ fun TrackListScreen(
                                     playerViewModel.loadTrackFromContext(
                                         shuffledTracks, 0, state.name,
                                     )
+                                    onPlayStarted()
                                 },
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
@@ -365,6 +369,7 @@ fun TrackListScreen(
                                     playerViewModel.loadTrackFromContext(
                                         state.trackUris, 0, state.name,
                                     )
+                                    onPlayStarted()
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
