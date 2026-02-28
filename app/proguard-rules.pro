@@ -25,6 +25,12 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
+# Tink (via security-crypto) references error-prone annotations at compile time only
+-dontwarn com.google.errorprone.annotations.CanIgnoreReturnValue
+-dontwarn com.google.errorprone.annotations.CheckReturnValue
+-dontwarn com.google.errorprone.annotations.Immutable
+-dontwarn com.google.errorprone.annotations.RestrictedApi
+
 # Strip debug/verbose logs from release builds
 -assumenosideeffects class android.util.Log {
     public static int v(...);
