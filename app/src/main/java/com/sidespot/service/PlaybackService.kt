@@ -16,6 +16,7 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.sidespot.MainActivity
+import com.sidespot.bridge.NativeBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -100,6 +101,9 @@ class PlaybackService : Service() {
 
                 updateMediaSession(title, artist, isPlaying, positionMs, durationMs)
 
+                // Always call startForeground to satisfy the startForegroundService() contract
+                startForeground(NOTIFICATION_ID, buildNotification(title, artist, isPlaying))
+
                 // Fetch art async if URL changed
                 if (artUrl != null && artUrl != currentArtUrl) {
                     currentArtUrl = artUrl
@@ -109,11 +113,11 @@ class PlaybackService : Service() {
                         updateMediaSessionArt(bitmap)
                         updateNotification(title, artist, isPlaying)
                     }
-                } else {
-                    updateNotification(title, artist, isPlaying)
                 }
             }
             ACTION_STOP_SERVICE -> {
+                // Satisfy any pending startForegroundService() contract before stopping
+                startForeground(NOTIFICATION_ID, buildNotification("sidespot", "", false))
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -122,6 +126,14 @@ class PlaybackService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        NativeBridge.playerStop()
+        NativeBridge.sessionDisconnect()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         mediaSession.isActive = false
