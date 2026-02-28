@@ -1,7 +1,7 @@
 package com.sidespot.ui
 
 import android.view.KeyEvent
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +39,7 @@ fun Modifier.focusHighlight(
     var hasFocus by remember { mutableStateOf(false) }
     val showHighlight by dpadActive
     val resolvedColor = if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color
-    val borderColor = if (hasFocus && showHighlight) resolvedColor else Color.Transparent
+    val fillColor = if (hasFocus && showHighlight) resolvedColor.copy(alpha = 0.25f) else Color.Transparent
 
     this
         .pointerInput(Unit) {
@@ -77,7 +77,7 @@ fun Modifier.focusHighlight(
             false
         }
         .focusable()
-        .border(2.dp, borderColor, shape)
+        .background(fillColor, shape)
         .padding(padding)
 }
 
