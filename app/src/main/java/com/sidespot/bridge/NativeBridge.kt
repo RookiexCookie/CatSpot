@@ -68,9 +68,10 @@ object NativeBridge {
      * Load a track by Spotify URI and optionally start playing.
      * @param trackUri e.g. "spotify:track:4uLU6hMCjMI75M1A2tKUQC"
      * @param startPlaying whether to auto-play after loading
+     * @param positionMs start position in milliseconds (default 0)
      * @return null on success, or an error message string on failure.
      */
-    external fun playerLoad(trackUri: String, startPlaying: Boolean): String?
+    external fun playerLoad(trackUri: String, startPlaying: Boolean, positionMs: Int = 0): String?
 
     /**
      * Preload a track so it starts instantly when loaded next.

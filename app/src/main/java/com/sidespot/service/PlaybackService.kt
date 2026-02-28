@@ -11,7 +11,10 @@ import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.os.PowerManager
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
@@ -28,6 +31,7 @@ class PlaybackService : Service() {
     companion object {
         private const val CHANNEL_ID = "sidespot_playback"
         private const val NOTIFICATION_ID = 1
+        private const val PAUSE_TIMEOUT_MS = 10 * 60 * 1000L
 
         const val ACTION_UPDATE = "com.sidespot.UPDATE"
         const val ACTION_STOP_SERVICE = "com.sidespot.STOP_SERVICE"
@@ -77,6 +81,9 @@ class PlaybackService : Service() {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var currentArtUrl: String? = null
     private var currentArtBitmap: Bitmap? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val pauseTimeoutRunnable = Runnable { onPauseTimeout() }
 
     override fun onCreate() {
         super.onCreate()
@@ -84,6 +91,10 @@ class PlaybackService : Service() {
         mediaSession = MediaSession(this, "sidespot")
         mediaSession.setCallback(mediaSessionCallback)
         mediaSession.isActive = true
+
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "sidespot::playback")
+            .apply { setReferenceCounted(false) }
 
         // Start with a minimal notification immediately
         startForeground(NOTIFICATION_ID, buildNotification("sidespot", "", false))
@@ -104,6 +115,16 @@ class PlaybackService : Service() {
                 // Always call startForeground to satisfy the startForegroundService() contract
                 startForeground(NOTIFICATION_ID, buildNotification(title, artist, isPlaying))
 
+                // Manage wake lock and pause timeout
+                if (isPlaying) {
+                    handler.removeCallbacks(pauseTimeoutRunnable)
+                    wakeLock?.acquire()
+                } else {
+                    if (wakeLock?.isHeld != true) wakeLock?.acquire()
+                    handler.removeCallbacks(pauseTimeoutRunnable)
+                    handler.postDelayed(pauseTimeoutRunnable, PAUSE_TIMEOUT_MS)
+                }
+
                 // Fetch art async if URL changed
                 if (artUrl != null && artUrl != currentArtUrl) {
                     currentArtUrl = artUrl
@@ -116,6 +137,7 @@ class PlaybackService : Service() {
                 }
             }
             ACTION_STOP_SERVICE -> {
+                releaseWakeLock()
                 // Satisfy any pending startForegroundService() contract before stopping
                 startForeground(NOTIFICATION_ID, buildNotification("sidespot", "", false))
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -128,6 +150,7 @@ class PlaybackService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        releaseWakeLock()
         NativeBridge.playerStop()
         NativeBridge.sessionDisconnect()
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -136,10 +159,24 @@ class PlaybackService : Service() {
     }
 
     override fun onDestroy() {
+        releaseWakeLock()
         mediaSession.isActive = false
         mediaSession.release()
         scope.cancel()
         super.onDestroy()
+    }
+
+    private fun onPauseTimeout() {
+        // Only stop if still paused (not playing)
+        val state = mediaSession.controller?.playbackState?.state
+        if (state != PlaybackState.STATE_PLAYING) {
+            sendMediaCommand { putExtra("command", "stop") }
+        }
+    }
+
+    private fun releaseWakeLock() {
+        handler.removeCallbacks(pauseTimeoutRunnable)
+        if (wakeLock?.isHeld == true) wakeLock?.release()
     }
 
     private fun createNotificationChannel() {

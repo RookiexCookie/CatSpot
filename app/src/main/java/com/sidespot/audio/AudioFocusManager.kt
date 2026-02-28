@@ -16,6 +16,7 @@ class AudioFocusManager(context: Context) {
     }
 
     var listener: Listener? = null
+    var isPlaying = false
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var hasFocus = false
@@ -33,12 +34,12 @@ class AudioFocusManager(context: Context) {
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
                 hasFocus = false
-                listener?.onStop()
+                if (isPlaying) listener?.onPause()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 hasFocus = false
-                wasPlayingBeforeLoss = true
-                listener?.onPause()
+                wasPlayingBeforeLoss = isPlaying
+                if (isPlaying) listener?.onPause()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 listener?.onDuck()

@@ -215,15 +215,15 @@ pub async fn create_player() -> Result<()> {
 }
 
 /// Load and play a track by Spotify URI (e.g., "spotify:track:4uLU6hMCjMI75M1A2tKUQC").
-pub async fn load_track(uri: &str, start_playing: bool) -> Result<()> {
+pub async fn load_track(uri: &str, start_playing: bool, position_ms: u32) -> Result<()> {
     let slot = player_slot().lock().await;
     let player = slot.as_ref().ok_or(SidespotError::NoPlayer)?;
 
     let spotify_uri = SpotifyUri::from_uri(uri)
         .map_err(|e| SidespotError::Player(format!("invalid URI '{uri}': {e}")))?;
 
-    player.load(spotify_uri, start_playing, 0);
-    log::info!("Loaded track: {uri}, start_playing={start_playing}");
+    player.load(spotify_uri, start_playing, position_ms);
+    log::info!("Loaded track: {uri}, start_playing={start_playing}, position_ms={position_ms}");
     Ok(())
 }
 

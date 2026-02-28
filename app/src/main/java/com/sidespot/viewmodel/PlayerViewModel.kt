@@ -239,16 +239,13 @@ class PlayerViewModel : ViewModel() {
 
                 _uiState.update { it.copy(isLoading = true, error = null) }
 
-                val error = NativeBridge.playerLoad(state.trackUri, true)
+                val error = NativeBridge.playerLoad(state.trackUri, true, resumeMs.toInt())
                 if (error != null) return@launch
-
-                if (resumeMs > 0) {
-                    NativeBridge.playerSeek(resumeMs.toInt())
-                }
 
                 appContext?.let { PlaybackService.startService(it) }
                 updatePlaybackService()
             } else {
+                audioCallback.release()
                 NativeBridge.playerPlay()
             }
         }
@@ -356,11 +353,7 @@ class PlayerViewModel : ViewModel() {
 
             // Resume playback if a track was loaded
             if (savedUri.isNotEmpty()) {
-                NativeBridge.playerLoad(savedUri, wasPlaying)
-                if (savedPosition > 0) {
-                    // Add 1s offset to account for propagation delay
-                    NativeBridge.playerSeek((savedPosition + 1000).toInt())
-                }
+                NativeBridge.playerLoad(savedUri, wasPlaying, savedPosition.toInt())
             }
         }
     }
@@ -562,6 +555,7 @@ class PlayerViewModel : ViewModel() {
             is PlayerEvent.Playing -> {
                 consecutiveErrors = 0
                 isPlayerStopped = false
+                audioFocusManager?.isPlaying = true
                 val current = _uiState.value
                 _positionMs.value = event.positionMs.toLong()
                 if (!current.isPlaying || current.isLoading) {
@@ -572,6 +566,7 @@ class PlayerViewModel : ViewModel() {
                 }
             }
             is PlayerEvent.Paused -> {
+                audioFocusManager?.isPlaying = false
                 val wasPlaying = _uiState.value.isPlaying
                 _positionMs.value = event.positionMs.toLong()
                 if (wasPlaying) {
@@ -580,6 +575,7 @@ class PlayerViewModel : ViewModel() {
                 }
             }
             is PlayerEvent.Stopped -> {
+                audioFocusManager?.isPlaying = false
                 isPlayerStopped = true
                 stoppedPositionMs = _positionMs.value
                 _positionMs.value = 0L

@@ -190,11 +190,12 @@ pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_playerLoad(
     _class: JClass,
     track_uri: JString,
     start_playing: jboolean,
+    position_ms: jint,
 ) -> jstring {
     let uri = jstring_to_string(&mut env, &track_uri);
     let play = start_playing == JNI_TRUE;
 
-    match block_on(player::load_track(&uri, play)) {
+    match block_on(player::load_track(&uri, play, position_ms as u32)) {
         Ok(()) => std::ptr::null_mut(),
         Err(e) => {
             let msg = format!("{e}");
