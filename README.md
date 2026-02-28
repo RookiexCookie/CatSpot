@@ -19,11 +19,12 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 - **No Google Play Services required** -- runs on degoogled and minimal Android devices
 - **Optimized for small screens** -- dark theme, 48dp+ touch targets, designed for 2.8" displays
 - **Full playback** -- play, pause, seek, skip, shuffle, repeat, queue management
-- **Library browsing** -- playlists, liked songs, saved albums, saved podcasts
+- **Library browsing** -- playlists, liked songs, saved albums, saved podcasts, sorted by recently played with album art thumbnails
 - **Library management** -- save/remove albums, playlists, and podcasts directly from the app; add tracks to liked songs or any writable playlist; create new playlists
 - **Search** -- find tracks, albums, playlists, and podcasts
-- **Podcast playback** -- browse saved shows, view episode lists, play episodes
+- **Podcast support** -- browse saved shows, view episode lists, play episodes, dedicated New Episodes screen across all subscribed shows
 - **Background playback** -- foreground service with media notification controls
+- **Dynamic theming** -- album art colors tint the entire UI with smooth animated transitions
 - **Hardware volume keys** -- physical button integration
 - **Audio focus** -- pauses for calls, ducks for notifications, resumes automatically
 - **Settings** -- audio quality (96/160/320 kbps), volume normalization, gapless playback, autoplay
@@ -44,9 +45,10 @@ When a Sundial keypad is connected, sidespot enables full hardware navigation --
 | **Bottom-right (Enter)** | Open row actions (add to queue, liked songs, playlist) |
 
 Additional adaptations when a Sundial is detected:
-- **Focus indicators** on all list items (highlighted border)
+- **Fill-style focus indicators** on all interactive items
 - **Stacked Play All / Shuffle buttons** in playlist and album views for easy D-pad access
-- **Auto-focus on Play All** when entering a playlist or album
+- **Auto-focus on first content row** when entering any list view
+- **Focus only appears during D-pad use** -- hidden in touch mode to avoid visual clutter
 
 ## Requirements
 
