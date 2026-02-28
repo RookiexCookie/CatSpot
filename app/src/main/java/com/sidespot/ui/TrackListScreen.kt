@@ -73,9 +73,13 @@ fun TrackListScreen(
     var selectedTrackUri by remember { mutableStateOf<String?>(null) }
     var saveAlbumFeedback by remember { mutableStateOf<String?>(null) }
     var savePlaylistFeedback by remember { mutableStateOf<String?>(null) }
-    val isAlbumSaved = libraryState.albums.any { it.uri == uri }
-    val isPlaylist = uri.startsWith("spotify:playlist:")
-    val isPlaylistSaved = libraryState.playlists.any { it.uri == uri }
+    val isAlbumSaved = remember(libraryState.albums, uri) {
+        libraryState.albums.any { it.uri == uri }
+    }
+    val isPlaylist = remember(uri) { uri.startsWith("spotify:playlist:") }
+    val isPlaylistSaved = remember(libraryState.playlists, uri) {
+        libraryState.playlists.any { it.uri == uri }
+    }
 
     LaunchedEffect(uri) {
         trackListViewModel.loadTrackList(uri)
@@ -158,6 +162,13 @@ fun TrackListScreen(
             }
         }
     } else {
+        val hasDpad = remember {
+            InputDevice.getDeviceIds().any { id ->
+                val dev = InputDevice.getDevice(id)
+                dev != null && !dev.isVirtual &&
+                    dev.sources and InputDevice.SOURCE_DPAD != 0
+            }
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -207,12 +218,6 @@ fun TrackListScreen(
 
             // Track count + Play All
             if (state.trackUris.isNotEmpty()) {
-                val hasDpad = InputDevice.getDeviceIds().any { id ->
-                    val dev = InputDevice.getDevice(id)
-                    dev != null && !dev.isVirtual &&
-                        dev.sources and InputDevice.SOURCE_DPAD != 0
-                }
-
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -480,10 +485,13 @@ fun TrackListScreen(
     // Bottom sheet for long-press actions
     if (selectedTrackUri != null) {
         val selectedTrack = state.tracks.find { it.uri == selectedTrackUri }
+        val writablePlaylists = remember(libraryState.playlists) {
+            libraryState.playlists.filter { it.isWritable }
+        }
         TrackActionsSheet(
             trackUri = selectedTrackUri!!,
             playerViewModel = playerViewModel,
-            playlists = libraryState.playlists.filter { it.isWritable },
+            playlists = writablePlaylists,
             onDismiss = { selectedTrackUri = null },
             onGoToAlbum = if (!state.isAlbum && selectedTrack != null) {
                 { onGoToAlbum(selectedTrack.albumUri) }

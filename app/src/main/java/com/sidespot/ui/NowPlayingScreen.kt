@@ -75,6 +75,7 @@ fun NowPlayingScreen(
     onBack: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
+    val positionMs by viewModel.positionMs.collectAsState()
     val queueState by viewModel.queueManager.state.collectAsState()
 
     // Album art background with controls overlaid
@@ -273,7 +274,7 @@ fun NowPlayingScreen(
 
                 // Seek slider
                 SeekBar(
-                    positionMs = state.positionMs,
+                    positionMs = positionMs,
                     durationMs = state.durationMs,
                     onSeek = { viewModel.seek(it) },
                 )

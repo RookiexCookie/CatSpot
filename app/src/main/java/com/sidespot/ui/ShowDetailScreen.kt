@@ -52,7 +52,9 @@ fun ShowDetailScreen(
 ) {
     val state by libraryViewModel.uiState.collectAsState()
     var saveShowFeedback by remember { mutableStateOf<String?>(null) }
-    val isShowSaved = state.shows.any { it.uri == showUri }
+    val isShowSaved = remember(state.shows, showUri) {
+        state.shows.any { it.uri == showUri }
+    }
 
     LaunchedEffect(showUri) {
         libraryViewModel.loadShowEpisodes(showUri)

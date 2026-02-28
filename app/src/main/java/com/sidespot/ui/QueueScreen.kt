@@ -77,7 +77,9 @@ fun QueueScreen(
         playerViewModel.resolveQueueMetadata()
     }
 
-    val upcoming = queueState.contextTracks.drop(queueState.contextIndex + 1)
+    val upcoming = remember(queueState.contextTracks, queueState.contextIndex) {
+        queueState.contextTracks.drop(queueState.contextIndex + 1)
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -284,8 +286,11 @@ fun QueueScreen(
                             )
                         }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        val writablePlaylists = remember(libraryState.playlists) {
+                            libraryState.playlists.filter { it.isWritable }
+                        }
                         LazyColumn {
-                            items(libraryState.playlists.filter { it.isWritable }, key = { it.uri }) { playlist ->
+                            items(writablePlaylists, key = { it.uri }) { playlist ->
                                 Text(
                                     text = playlist.name.ifEmpty { "Untitled Playlist" },
                                     style = MaterialTheme.typography.bodyLarge,

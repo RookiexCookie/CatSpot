@@ -34,7 +34,6 @@ data class PlayerUiState(
     val artistName: String = "",
     val albumName: String = "",
     val albumArtUrl: String? = null,
-    val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val error: String? = null,
     val connectionStatus: String = "Disconnected",
@@ -46,6 +45,9 @@ class PlayerViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
+    private val _positionMs = MutableStateFlow(0L)
+    val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
 
     val queueManager = QueueManager()
 
@@ -252,8 +254,7 @@ class PlayerViewModel : ViewModel() {
 
     fun previous() {
         viewModelScope.launch(Dispatchers.IO) {
-            val state = _uiState.value
-            if (state.positionMs > 3000) {
+            if (_positionMs.value > 3000) {
                 NativeBridge.playerSeek(0)
                 return@launch
             }
@@ -315,7 +316,7 @@ class PlayerViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val state = _uiState.value
             val savedUri = state.trackUri
-            val savedPosition = state.positionMs
+            val savedPosition = _positionMs.value
             val wasPlaying = state.isPlaying
 
             val error = NativeBridge.playerRecreate()
@@ -464,6 +465,7 @@ class PlayerViewModel : ViewModel() {
             loader.enqueue(
                 ImageRequest.Builder(ctx)
                     .data(url)
+                    .size(128, 128)
                     .build(),
             )
         }
@@ -502,7 +504,7 @@ class PlayerViewModel : ViewModel() {
                 artist = state.artistName,
                 artUrl = state.albumArtUrl,
                 isPlaying = state.isPlaying,
-                positionMs = state.positionMs,
+                positionMs = _positionMs.value,
                 durationMs = state.durationMs,
             )
         }
@@ -529,30 +531,26 @@ class PlayerViewModel : ViewModel() {
     private fun handlePlayerEvent(event: PlayerEvent) {
         when (event) {
             is PlayerEvent.Playing -> {
-                val wasPlaying = _uiState.value.isPlaying
-                _uiState.update {
-                    it.copy(
-                        isPlaying = true,
-                        isLoading = false,
-                        positionMs = event.positionMs.toLong(),
-                    )
+                val current = _uiState.value
+                _positionMs.value = event.positionMs.toLong()
+                if (!current.isPlaying || current.isLoading) {
+                    _uiState.update {
+                        it.copy(isPlaying = true, isLoading = false)
+                    }
+                    if (!current.isPlaying) updatePlaybackService()
                 }
-                if (!wasPlaying) updatePlaybackService()
             }
             is PlayerEvent.Paused -> {
                 val wasPlaying = _uiState.value.isPlaying
-                _uiState.update {
-                    it.copy(
-                        isPlaying = false,
-                        positionMs = event.positionMs.toLong(),
-                    )
+                _positionMs.value = event.positionMs.toLong()
+                if (wasPlaying) {
+                    _uiState.update { it.copy(isPlaying = false) }
+                    updatePlaybackService()
                 }
-                if (wasPlaying) updatePlaybackService()
             }
             is PlayerEvent.Stopped -> {
-                _uiState.update {
-                    it.copy(isPlaying = false, positionMs = 0L)
-                }
+                _positionMs.value = 0L
+                _uiState.update { it.copy(isPlaying = false) }
                 updatePlaybackService()
             }
             is PlayerEvent.Loading -> {
@@ -567,9 +565,8 @@ class PlayerViewModel : ViewModel() {
                         loadTrack(nextUri)
                         preloadUpcoming()
                     } else {
-                        _uiState.update {
-                            it.copy(isPlaying = false, positionMs = 0L)
-                        }
+                        _positionMs.value = 0L
+                        _uiState.update { it.copy(isPlaying = false) }
                         audioFocusManager?.abandonFocus()
                         appContext?.let { PlaybackService.stopService(it) }
                     }

@@ -133,6 +133,18 @@ fun SearchScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
+            val displayedTracks = remember(state.tracks, state.tracksDisplayLimit) {
+                state.tracks.take(state.tracksDisplayLimit)
+            }
+            val displayedAlbums = remember(state.albums, state.albumsDisplayLimit) {
+                state.albums.take(state.albumsDisplayLimit)
+            }
+            val displayedPlaylists = remember(state.playlists, state.playlistsDisplayLimit) {
+                state.playlists.take(state.playlistsDisplayLimit)
+            }
+            val displayedShows = remember(state.shows, state.showsDisplayLimit) {
+                state.shows.take(state.showsDisplayLimit)
+            }
             LazyColumn {
                 // Songs section
                 if (state.tracks.isNotEmpty()) {
@@ -145,7 +157,6 @@ fun SearchScreen(
                         )
                     }
 
-                    val displayedTracks = state.tracks.take(state.tracksDisplayLimit)
                     itemsIndexed(displayedTracks, key = { _, track -> track.uri }) { index, track ->
                         SearchResultRow(
                             track = track,
@@ -187,7 +198,6 @@ fun SearchScreen(
                         )
                     }
 
-                    val displayedAlbums = state.albums.take(state.albumsDisplayLimit)
                     itemsIndexed(displayedAlbums, key = { _, album -> album.uri }) { _, album ->
                         AlbumResultRow(
                             album = album,
@@ -222,7 +232,6 @@ fun SearchScreen(
                         )
                     }
 
-                    val displayedPlaylists = state.playlists.take(state.playlistsDisplayLimit)
                     itemsIndexed(displayedPlaylists, key = { _, playlist -> playlist.uri }) { _, playlist ->
                         PlaylistResultRow(
                             playlist = playlist,
@@ -258,7 +267,6 @@ fun SearchScreen(
                         )
                     }
 
-                    val displayedShows = state.shows.take(state.showsDisplayLimit)
                     itemsIndexed(displayedShows, key = { _, show -> show.uri }) { _, show ->
                         ShowResultRow(
                             show = show,
@@ -304,10 +312,13 @@ fun SearchScreen(
     // Track actions bottom sheet
     if (selectedTrackUri != null) {
         val selectedTrack = state.tracks.find { it.uri == selectedTrackUri }
+        val writablePlaylists = remember(libraryState.playlists) {
+            libraryState.playlists.filter { it.isWritable }
+        }
         TrackActionsSheet(
             trackUri = selectedTrackUri!!,
             playerViewModel = playerViewModel,
-            playlists = libraryState.playlists.filter { it.isWritable },
+            playlists = writablePlaylists,
             onDismiss = { selectedTrackUri = null },
             onGoToAlbum = if (selectedTrack != null) {
                 { onAlbumClick(selectedTrack.albumUri) }
@@ -317,8 +328,12 @@ fun SearchScreen(
 
     // Playlist actions bottom sheet
     if (selectedPlaylistUri != null) {
-        val isInLibrary = libraryState.playlists.any { it.uri == selectedPlaylistUri }
-        val selectedPlaylist = state.playlists.find { it.uri == selectedPlaylistUri }
+        val isInLibrary = remember(libraryState.playlists, selectedPlaylistUri) {
+            libraryState.playlists.any { it.uri == selectedPlaylistUri }
+        }
+        val selectedPlaylist = remember(state.playlists, selectedPlaylistUri) {
+            state.playlists.find { it.uri == selectedPlaylistUri }
+        }
 
         if (playlistFeedbackText != null) {
             LaunchedEffect(playlistFeedbackText) {

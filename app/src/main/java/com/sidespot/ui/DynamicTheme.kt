@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
-import coil.ImageLoader
+import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.size.Size
@@ -54,7 +54,7 @@ fun rememberAlbumColors(albumArtUrl: String?): AlbumColors {
 }
 
 private suspend fun loadBitmap(context: android.content.Context, url: String): Bitmap? {
-    val loader = ImageLoader(context)
+    val loader = context.imageLoader
     val request = ImageRequest.Builder(context)
         .data(url)
         .size(Size(128, 128))
@@ -156,21 +156,23 @@ fun DynamicSidespotTheme(
         label = "background",
     )
 
-    val colorScheme = darkColorScheme(
-        primary = primary,
-        onPrimary = Color.Black,
-        primaryContainer = primaryContainer,
-        secondary = Color(0xFFB3B3B3),
-        onSecondary = Color.Black,
-        background = background,
-        onBackground = Color.White,
-        surface = surface,
-        onSurface = Color.White,
-        surfaceVariant = surfaceVariant,
-        onSurfaceVariant = Color(0xFFB3B3B3),
-        error = Color(0xFFCF6679),
-        onError = Color.Black,
-    )
+    val colorScheme = remember(primary, primaryContainer, surface, surfaceVariant, background) {
+        darkColorScheme(
+            primary = primary,
+            onPrimary = Color.Black,
+            primaryContainer = primaryContainer,
+            secondary = Color(0xFFB3B3B3),
+            onSecondary = Color.Black,
+            background = background,
+            onBackground = Color.White,
+            surface = surface,
+            onSurface = Color.White,
+            surfaceVariant = surfaceVariant,
+            onSurfaceVariant = Color(0xFFB3B3B3),
+            error = Color(0xFFCF6679),
+            onError = Color.Black,
+        )
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,
