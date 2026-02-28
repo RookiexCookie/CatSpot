@@ -18,11 +18,21 @@ class AudioCallback {
     /** Called by native code to deliver PCM audio samples. */
     @Suppress("unused") // Called from JNI
     fun onAudioData(data: ByteArray) {
-        val track = audioTrack ?: createAudioTrack().also { audioTrack = it }
-        if (track.playState != AudioTrack.PLAYSTATE_PLAYING) {
-            track.play()
+        try {
+            val track = audioTrack ?: createAudioTrack().also { audioTrack = it }
+            if (track.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                track.play()
+            }
+            track.write(data, 0, data.size)
+        } catch (e: IllegalStateException) {
+            // AudioTrack was invalidated/released — recreate it
+            audioTrack = null
+            try {
+                val track = createAudioTrack().also { audioTrack = it }
+                track.play()
+                track.write(data, 0, data.size)
+            } catch (_: Exception) {}
         }
-        track.write(data, 0, data.size)
     }
 
     private fun createAudioTrack(): AudioTrack {
