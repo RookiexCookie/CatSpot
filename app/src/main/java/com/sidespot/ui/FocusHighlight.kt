@@ -18,12 +18,17 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private val DPAD_BACK_CODES = setOf(
     KeyEvent.KEYCODE_DPAD_RIGHT,
 )
+
+/** Global toggle: true after any D-pad key, false after any touch. */
+private val dpadActive = mutableStateOf(false)
 
 fun Modifier.focusHighlight(
     color: Color = Color.Unspecified,
@@ -32,36 +37,45 @@ fun Modifier.focusHighlight(
     padding: Dp = 10.dp,
 ): Modifier = composed {
     var hasFocus by remember { mutableStateOf(false) }
+    val showHighlight by dpadActive
     val resolvedColor = if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color
-    val borderColor = if (hasFocus) resolvedColor else Color.Transparent
+    val borderColor = if (hasFocus && showHighlight) resolvedColor else Color.Transparent
 
     this
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    awaitPointerEvent(PointerEventPass.Initial)
+                    dpadActive.value = false
+                }
+            }
+        }
         .onFocusChanged { hasFocus = it.hasFocus }
-        .then(
-            if (onEnterKey != null) {
-                Modifier.onPreviewKeyEvent { event ->
-                    if (!hasFocus) return@onPreviewKeyEvent false
-                    val native = event.nativeKeyEvent
-                    val kc = native.keyCode
-                    when {
-                        native.action == KeyEvent.ACTION_DOWN && (
-                            kc == KeyEvent.KEYCODE_ENTER ||
-                            (kc == KeyEvent.KEYCODE_DPAD_CENTER && native.isLongPress)
-                        ) -> {
+        .onPreviewKeyEvent { event ->
+            val native = event.nativeKeyEvent
+            if (native.action == KeyEvent.ACTION_DOWN) {
+                dpadActive.value = true
+            }
+            if (onEnterKey != null && hasFocus) {
+                val kc = native.keyCode
+                when {
+                    native.action == KeyEvent.ACTION_DOWN && (
+                        kc == KeyEvent.KEYCODE_ENTER ||
+                        (kc == KeyEvent.KEYCODE_DPAD_CENTER && native.isLongPress)
+                    ) -> {
+                        onEnterKey()
+                        return@onPreviewKeyEvent true
+                    }
+                    kc == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        if (native.action == KeyEvent.ACTION_DOWN && native.repeatCount == 0) {
                             onEnterKey()
-                            true
                         }
-                        kc == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                            if (native.action == KeyEvent.ACTION_DOWN && native.repeatCount == 0) {
-                                onEnterKey()
-                            }
-                            true // consume all MEDIA_PLAY_PAUSE (repeats + ACTION_UP)
-                        }
-                        else -> false
+                        return@onPreviewKeyEvent true
                     }
                 }
-            } else Modifier
-        )
+            }
+            false
+        }
         .focusable()
         .border(2.dp, borderColor, shape)
         .padding(padding)

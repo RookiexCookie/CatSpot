@@ -39,8 +39,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,7 +53,7 @@ import com.sidespot.api.ApiResult
 import com.sidespot.viewmodel.LibraryViewModel
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (uri: String) -> Unit,
@@ -61,11 +66,14 @@ fun LibraryScreen(
     val state by viewModel.uiState.collectAsState()
     var selectedPlaylistUri by remember { mutableStateOf<String?>(null) }
     var feedbackText by remember { mutableStateOf<String?>(null) }
+    val likedSongsFocus = remember { FocusRequester() }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .focusProperties { enter = { likedSongsFocus } }
+            .focusGroup(),
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -117,6 +125,7 @@ fun LibraryScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusRequester(likedSongsFocus)
                             .focusHighlight()
                             .clickable(onClick = onLikedSongsClick)
                             .padding(vertical = 12.dp),
