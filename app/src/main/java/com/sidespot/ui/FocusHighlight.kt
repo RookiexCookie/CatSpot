@@ -34,12 +34,13 @@ fun Modifier.focusHighlight(
     color: Color = Color.Unspecified,
     shape: Shape = RectangleShape,
     onEnterKey: (() -> Unit)? = null,
-    padding: Dp = 10.dp,
+    horizontalPadding: Dp = 14.dp,
+    verticalPadding: Dp = 8.dp,
 ): Modifier = composed {
     var hasFocus by remember { mutableStateOf(false) }
     val showHighlight by dpadActive
     val resolvedColor = if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color
-    val fillColor = if (hasFocus && showHighlight) resolvedColor.copy(alpha = 0.25f) else Color.Transparent
+    val fillColor = if (hasFocus && showHighlight) resolvedColor.copy(alpha = 0.5f) else Color.Transparent
 
     this
         .pointerInput(Unit) {
@@ -78,18 +79,19 @@ fun Modifier.focusHighlight(
         }
         .focusable()
         .background(fillColor, shape)
-        .padding(padding)
+        .padding(horizontal = horizontalPadding, vertical = verticalPadding)
 }
 
 /** Darkens a button when focused — use on filled/primary-colored buttons. */
 fun Modifier.focusDarken(): Modifier = composed {
     var hasFocus by remember { mutableStateOf(false) }
+    val showHighlight by dpadActive
 
     this
         .onFocusChanged { hasFocus = it.hasFocus }
         .drawWithContent {
             drawContent()
-            if (hasFocus) {
+            if (hasFocus && showHighlight) {
                 drawRect(Color.Black.copy(alpha = 0.3f))
             }
         }
