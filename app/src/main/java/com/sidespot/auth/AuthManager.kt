@@ -35,6 +35,7 @@ class AuthManager(context: Context) {
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_EXPIRES_AT = "expires_at_ms"
         private const val KEY_CODE_VERIFIER = "code_verifier"
+        private const val KEY_SCOPES_HASH = "scopes_hash"
 
         private const val CLIENT_ID = "09751e7755284a0bbe10707c6bde85a0"
         private const val REDIRECT_URI = "sidespot://callback"
@@ -152,6 +153,16 @@ class AuthManager(context: Context) {
         _state.value = AuthState(isAuthenticated = false)
     }
 
+    fun needsReauth(): Boolean {
+        val stored = prefs.getString(KEY_SCOPES_HASH, null)
+        return stored != scopesHash()
+    }
+
+    private fun scopesHash(): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(SCOPES.toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
     private fun saveTokens(json: JSONObject) {
         val editor = prefs.edit()
         editor.putString(KEY_ACCESS_TOKEN, json.getString("access_token"))
@@ -160,6 +171,7 @@ class AuthManager(context: Context) {
         }
         val expiresIn = json.getInt("expires_in")
         editor.putLong(KEY_EXPIRES_AT, System.currentTimeMillis() + expiresIn * 1000L)
+        editor.putString(KEY_SCOPES_HASH, scopesHash())
         editor.remove(KEY_CODE_VERIFIER)
         editor.apply()
     }

@@ -253,10 +253,6 @@ class SpotifyWebApi(private val authManager: AuthManager) {
                 if (conn.responseCode !in 200..299) {
                     val err = conn.errorStream?.bufferedReader()?.readText()
                     android.util.Log.w("SpotifyWebApi", "getRecentlyPlayed HTTP ${conn.responseCode}: $err")
-                    if (conn.responseCode == 403) {
-                        android.util.Log.w("SpotifyWebApi", "Missing scope — logging out to re-authorize")
-                        authManager.logout()
-                    }
                     break
                 }
                 val body = conn.inputStream.bufferedReader().readText()

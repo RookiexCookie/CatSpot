@@ -176,6 +176,11 @@ fun SidespotNavigation(
     // isLoading avoids racing with an in-flight exchangeCode().
     LaunchedEffect(authState.isAuthenticated, authState.version, authState.isLoading, state.isConnected) {
         if (authState.isAuthenticated && !state.isConnected && !authState.isLoading) {
+            if (authManager.needsReauth()) {
+                android.util.Log.i("Navigation", "OAuth scopes changed — logging out to re-authorize")
+                authManager.logout()
+                return@LaunchedEffect
+            }
             val token = authManager.getValidAccessToken()
             if (token != null) {
                 playerViewModel.connect(token) { authManager.getValidAccessToken() }
