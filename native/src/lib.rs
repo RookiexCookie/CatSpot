@@ -6,6 +6,7 @@
 mod audio_sink;
 mod bridge;
 mod error;
+mod library;
 mod metadata;
 mod player;
 mod session;

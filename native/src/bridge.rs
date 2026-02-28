@@ -11,7 +11,7 @@ use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JString};
 use jni::sys::{jboolean, jint, jstring, JNI_TRUE, JNI_FALSE};
 
-use crate::{metadata, player, session};
+use crate::{library, metadata, player, session};
 use crate::audio_sink;
 
 /// Helper: convert a JNI string to a Rust String.
@@ -403,6 +403,228 @@ pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_metadataSearch(
         Err(e) => {
             let msg = format!("{{\"error\":\"{e}\"}}");
             log::error!("metadataSearch failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Library write operations
+// ---------------------------------------------------------------------------
+
+/// Add a track to the user's Liked Songs via collection v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_libraryAddToLikedSongs(
+    mut env: JNIEnv,
+    _class: JClass,
+    track_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &track_uri);
+    match block_on(library::add_to_liked_songs(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("libraryAddToLikedSongs failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Save an album to the user's library via collection v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_librarySaveAlbum(
+    mut env: JNIEnv,
+    _class: JClass,
+    album_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &album_uri);
+    match block_on(library::save_album(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("librarySaveAlbum failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Save a show (podcast) to the user's library via collection v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_librarySaveShow(
+    mut env: JNIEnv,
+    _class: JClass,
+    show_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &show_uri);
+    match block_on(library::save_show(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("librarySaveShow failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Remove an album from the user's library via collection v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_libraryUnsaveAlbum(
+    mut env: JNIEnv,
+    _class: JClass,
+    album_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &album_uri);
+    match block_on(library::unsave_album(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("libraryUnsaveAlbum failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Remove a show (podcast) from the user's library via collection v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_libraryUnsaveShow(
+    mut env: JNIEnv,
+    _class: JClass,
+    show_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &show_uri);
+    match block_on(library::unsave_show(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("libraryUnsaveShow failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Save (follow) a playlist to the user's library via rootlist v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_librarySavePlaylist(
+    mut env: JNIEnv,
+    _class: JClass,
+    playlist_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &playlist_uri);
+    match block_on(library::save_playlist(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("librarySavePlaylist failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Remove (unfollow) a playlist from the user's library via rootlist v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_libraryUnsavePlaylist(
+    mut env: JNIEnv,
+    _class: JClass,
+    playlist_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &playlist_uri);
+    match block_on(library::unsave_playlist(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("libraryUnsavePlaylist failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Add a track to an existing playlist via playlist v2.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_libraryAddToPlaylist(
+    mut env: JNIEnv,
+    _class: JClass,
+    playlist_uri: JString,
+    track_uri: JString,
+) -> jstring {
+    let pl_uri = jstring_to_string(&mut env, &playlist_uri);
+    let tr_uri = jstring_to_string(&mut env, &track_uri);
+    match block_on(library::add_to_playlist(&pl_uri, &tr_uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("libraryAddToPlaylist failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Create a new playlist via rootlist v2. Returns JSON with the new playlist URI.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_libraryCreatePlaylist(
+    mut env: JNIEnv,
+    _class: JClass,
+    name: JString,
+) -> jstring {
+    let n = jstring_to_string(&mut env, &name);
+    match block_on(library::create_playlist(&n)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"success\":false,\"error\":\"{e}\"}}");
+            log::error!("libraryCreatePlaylist failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Library read operations
+// ---------------------------------------------------------------------------
+
+/// Get user's saved albums via collection v2. Returns JSON array.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_metadataGetSavedAlbums(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    match block_on(library::get_saved_albums()) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"error\":\"{e}\"}}");
+            log::error!("metadataGetSavedAlbums failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Get user's saved shows via collection v2. Returns JSON array.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_metadataGetSavedShows(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    match block_on(library::get_saved_shows()) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"error\":\"{e}\"}}");
+            log::error!("metadataGetSavedShows failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
+/// Get episodes for a show. Returns JSON array of episode summaries.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_metadataGetShowEpisodes(
+    mut env: JNIEnv,
+    _class: JClass,
+    show_uri: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &show_uri);
+    match block_on(library::get_show_episodes(&uri)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"error\":\"{e}\"}}");
+            log::error!("metadataGetShowEpisodes failed: {e}");
             string_to_jstring(&mut env, &msg)
         }
     }

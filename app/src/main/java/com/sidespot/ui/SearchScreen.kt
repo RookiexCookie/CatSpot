@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,17 +19,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,12 +51,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.sidespot.api.ApiResult
 import com.sidespot.bridge.ShowSummary
 import com.sidespot.bridge.TrackInfo
 import com.sidespot.viewmodel.AlbumResult
 import com.sidespot.viewmodel.LibraryViewModel
 import com.sidespot.viewmodel.PlayerViewModel
+import com.sidespot.viewmodel.PlaylistResult
 import com.sidespot.viewmodel.SearchViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -58,11 +68,14 @@ fun SearchScreen(
     libraryViewModel: LibraryViewModel = viewModel(),
     searchViewModel: SearchViewModel = viewModel(),
     onAlbumClick: (String) -> Unit = {},
+    onPlaylistClick: (String) -> Unit = {},
     onShowClick: (String) -> Unit = {},
 ) {
     val state by searchViewModel.uiState.collectAsState()
     val libraryState by libraryViewModel.uiState.collectAsState()
     var selectedTrackUri by remember { mutableStateOf<String?>(null) }
+    var selectedPlaylistUri by remember { mutableStateOf<String?>(null) }
+    var playlistFeedbackText by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -100,7 +113,7 @@ fun SearchScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (state.isSearching && state.tracks.isEmpty() && state.albums.isEmpty() && state.shows.isEmpty()) {
+        if (state.isSearching && state.tracks.isEmpty() && state.albums.isEmpty() && state.shows.isEmpty() && state.playlists.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -113,7 +126,7 @@ fun SearchScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
             )
-        } else if (state.tracks.isEmpty() && state.albums.isEmpty() && state.shows.isEmpty() && state.query.isNotBlank() && !state.isSearching) {
+        } else if (state.tracks.isEmpty() && state.albums.isEmpty() && state.shows.isEmpty() && state.playlists.isEmpty() && state.query.isNotBlank() && !state.isSearching) {
             Text(
                 text = "No results",
                 style = MaterialTheme.typography.bodyMedium,
@@ -197,6 +210,42 @@ fun SearchScreen(
                     }
                 }
 
+                // Playlists section
+                if (state.playlists.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Playlists",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+
+                    val displayedPlaylists = state.playlists.take(state.playlistsDisplayLimit)
+                    itemsIndexed(displayedPlaylists, key = { _, playlist -> playlist.uri }) { _, playlist ->
+                        PlaylistResultRow(
+                            playlist = playlist,
+                            onClick = { onPlaylistClick(playlist.uri) },
+                            onLongClick = { selectedPlaylistUri = playlist.uri },
+                        )
+                    }
+
+                    if (state.hasMorePlaylists) {
+                        item {
+                            Text(
+                                text = "Show More...",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { searchViewModel.showMorePlaylists() }
+                                    .padding(vertical = 12.dp),
+                            )
+                        }
+                    }
+                }
+
                 // Podcasts section
                 if (state.shows.isNotEmpty()) {
                     item {
@@ -258,7 +307,7 @@ fun SearchScreen(
         TrackActionsSheet(
             trackUri = selectedTrackUri!!,
             playerViewModel = playerViewModel,
-            playlists = libraryState.playlists,
+            playlists = libraryState.playlists.filter { it.isWritable },
             onDismiss = { selectedTrackUri = null },
             onGoToAlbum = if (selectedTrack != null) {
                 { onAlbumClick(selectedTrack.albumUri) }
@@ -266,6 +315,115 @@ fun SearchScreen(
         )
     }
 
+    // Playlist actions bottom sheet
+    if (selectedPlaylistUri != null) {
+        val isInLibrary = libraryState.playlists.any { it.uri == selectedPlaylistUri }
+        val selectedPlaylist = state.playlists.find { it.uri == selectedPlaylistUri }
+
+        if (playlistFeedbackText != null) {
+            LaunchedEffect(playlistFeedbackText) {
+                delay(1000)
+                playlistFeedbackText = null
+                selectedPlaylistUri = null
+            }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { selectedPlaylistUri = null; playlistFeedbackText = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.dismissOnDpad { selectedPlaylistUri = null; playlistFeedbackText = null },
+        ) {
+            Column(modifier = Modifier.navigationBarsPadding().padding(16.dp)) {
+                if (playlistFeedbackText != null) {
+                    Text(
+                        text = playlistFeedbackText!!,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                } else if (isInLibrary) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusHighlight(onEnterKey = {
+                                libraryViewModel.unsavePlaylist(selectedPlaylistUri!!) { result ->
+                                    playlistFeedbackText = when (result) {
+                                        is ApiResult.Success -> "Removed from Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            })
+                            .clickable {
+                                libraryViewModel.unsavePlaylist(selectedPlaylistUri!!) { result ->
+                                    playlistFeedbackText = when (result) {
+                                        is ApiResult.Success -> "Removed from Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            }
+                            .padding(vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RemoveCircleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Remove from Library",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusHighlight(onEnterKey = {
+                                libraryViewModel.savePlaylist(
+                                    selectedPlaylistUri!!,
+                                    selectedPlaylist?.name ?: "",
+                                ) { result ->
+                                    playlistFeedbackText = when (result) {
+                                        is ApiResult.Success -> "Saved to Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            })
+                            .clickable {
+                                libraryViewModel.savePlaylist(
+                                    selectedPlaylistUri!!,
+                                    selectedPlaylist?.name ?: "",
+                                ) { result ->
+                                    playlistFeedbackText = when (result) {
+                                        is ApiResult.Success -> "Saved to Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            }
+                            .padding(vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LibraryAdd,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Save to Library",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -393,6 +551,72 @@ private fun AlbumResultRow(
             )
             Text(
                 text = album.artistName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PlaylistResultRow(
+    playlist: PlaylistResult,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusHighlight(onEnterKey = onLongClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (playlist.imageUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(playlist.imageUrl).size(128).build(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.QueueMusic,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = playlist.ownerName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

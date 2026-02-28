@@ -9,9 +9,6 @@ import androidx.lifecycle.viewModelScope
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.sidespot.api.ApiResult
-import com.sidespot.api.CreatePlaylistResult
-import com.sidespot.api.SpotifyWebApi
-import com.sidespot.auth.AuthManager
 import com.sidespot.audio.AudioCallback
 import com.sidespot.audio.AudioFocusManager
 import com.sidespot.bridge.ArtistSummary
@@ -54,7 +51,6 @@ class PlayerViewModel : ViewModel() {
 
     private val audioCallback = AudioCallback()
     private var eventPollingActive = false
-    private var webApi: SpotifyWebApi? = null
 
     private var appContext: Context? = null
     private var audioFocusManager: AudioFocusManager? = null
@@ -339,30 +335,16 @@ class PlayerViewModel : ViewModel() {
         }
     }
 
-    fun initApi(authManager: AuthManager) {
-        if (webApi == null) {
-            webApi = SpotifyWebApi(authManager)
-        }
-    }
-
     fun addToLikedSongs(trackUri: String, onResult: (ApiResult) -> Unit) {
-        val api = webApi ?: run {
-            onResult(ApiResult.Error("API not initialized"))
-            return
-        }
-        viewModelScope.launch {
-            val result = api.addToLikedSongs(trackUri)
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = parseNativeResult(NativeBridge.libraryAddToLikedSongs(trackUri))
             onResult(result)
         }
     }
 
     fun addToPlaylist(playlistUri: String, trackUri: String, onResult: (ApiResult) -> Unit) {
-        val api = webApi ?: run {
-            onResult(ApiResult.Error("API not initialized"))
-            return
-        }
-        viewModelScope.launch {
-            val result = api.addToPlaylist(playlistUri, trackUri)
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = parseNativeResult(NativeBridge.libraryAddToPlaylist(playlistUri, trackUri))
             onResult(result)
         }
     }
@@ -372,20 +354,45 @@ class PlayerViewModel : ViewModel() {
         trackUri: String,
         onResult: (ApiResult) -> Unit,
     ) {
-        val api = webApi ?: run {
-            onResult(ApiResult.Error("API not initialized"))
-            return
-        }
-        viewModelScope.launch {
-            when (val createResult = api.createPlaylist(name)) {
-                is CreatePlaylistResult.Success -> {
-                    val addResult = api.addToPlaylist(createResult.playlistUri, trackUri)
-                    onResult(addResult)
-                }
-                is CreatePlaylistResult.Error -> {
-                    onResult(ApiResult.Error(createResult.message))
-                }
+        viewModelScope.launch(Dispatchers.IO) {
+            val createJson = NativeBridge.libraryCreatePlaylist(name)
+            if (createJson == null) {
+                onResult(ApiResult.Error("Create playlist failed: null response"))
+                return@launch
             }
+            try {
+                val obj = org.json.JSONObject(createJson)
+                if (!obj.optBoolean("success", false)) {
+                    onResult(ApiResult.Error(obj.optString("error", "Unknown error")))
+                    return@launch
+                }
+                val newUri = obj.optString("uri", "")
+                if (newUri.isNotEmpty()) {
+                    val addResult = parseNativeResult(
+                        NativeBridge.libraryAddToPlaylist(newUri, trackUri)
+                    )
+                    onResult(addResult)
+                } else {
+                    // Playlist was created but URI not returned — still success
+                    onResult(ApiResult.Success)
+                }
+            } catch (e: Exception) {
+                onResult(ApiResult.Error("Parse error: ${e.message}"))
+            }
+        }
+    }
+
+    private fun parseNativeResult(json: String?): ApiResult {
+        if (json == null) return ApiResult.Error("Null response from native")
+        return try {
+            val obj = org.json.JSONObject(json)
+            if (obj.optBoolean("success", false)) {
+                ApiResult.Success
+            } else {
+                ApiResult.Error(obj.optString("error", "Unknown error"))
+            }
+        } catch (e: Exception) {
+            ApiResult.Error("Parse error: ${e.message}")
         }
     }
 

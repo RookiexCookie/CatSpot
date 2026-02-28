@@ -1,6 +1,8 @@
 package com.sidespot.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,23 +21,34 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sidespot.api.ApiResult
 import com.sidespot.viewmodel.LibraryViewModel
+import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (uri: String) -> Unit,
@@ -45,6 +59,8 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = viewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    var selectedPlaylistUri by remember { mutableStateOf<String?>(null) }
+    var feedbackText by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -179,8 +195,11 @@ fun LibraryScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .focusHighlight()
-                            .clickable { onPlaylistClick(playlist.uri) }
+                            .focusHighlight(onEnterKey = { selectedPlaylistUri = playlist.uri })
+                            .combinedClickable(
+                                onClick = { onPlaylistClick(playlist.uri) },
+                                onLongClick = { selectedPlaylistUri = playlist.uri },
+                            )
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -200,6 +219,71 @@ fun LibraryScreen(
                         )
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                }
+            }
+        }
+    }
+
+    // Bottom sheet for long-press actions on playlists
+    if (selectedPlaylistUri != null) {
+        if (feedbackText != null) {
+            LaunchedEffect(feedbackText) {
+                delay(1000)
+                feedbackText = null
+                selectedPlaylistUri = null
+            }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { selectedPlaylistUri = null; feedbackText = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.dismissOnDpad { selectedPlaylistUri = null; feedbackText = null },
+        ) {
+            Column(modifier = Modifier.navigationBarsPadding().padding(16.dp)) {
+                if (feedbackText != null) {
+                    Text(
+                        text = feedbackText!!,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusHighlight(onEnterKey = {
+                                viewModel.unsavePlaylist(selectedPlaylistUri!!) { result ->
+                                    feedbackText = when (result) {
+                                        is ApiResult.Success -> "Removed from Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            })
+                            .clickable {
+                                viewModel.unsavePlaylist(selectedPlaylistUri!!) { result ->
+                                    feedbackText = when (result) {
+                                        is ApiResult.Success -> "Removed from Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            }
+                            .padding(vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RemoveCircleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Remove from Library",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
             }
         }

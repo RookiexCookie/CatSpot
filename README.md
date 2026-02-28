@@ -19,8 +19,10 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 - **No Google Play Services required** -- runs on degoogled and minimal Android devices
 - **Optimized for small screens** -- dark theme, 48dp+ touch targets, designed for 2.8" displays
 - **Full playback** -- play, pause, seek, skip, shuffle, repeat, queue management
-- **Library browsing** -- playlists, liked songs, saved albums
-- **Search** -- find tracks, albums, and podcasts
+- **Library browsing** -- playlists, liked songs, saved albums, saved podcasts
+- **Library management** -- save/remove albums, playlists, and podcasts directly from the app; add tracks to liked songs or any writable playlist; create new playlists
+- **Search** -- find tracks, albums, playlists, and podcasts
+- **Podcast playback** -- browse saved shows, view episode lists, play episodes
 - **Background playback** -- foreground service with media notification controls
 - **Hardware volume keys** -- physical button integration
 - **Audio focus** -- pauses for calls, ducks for notifications, resumes automatically

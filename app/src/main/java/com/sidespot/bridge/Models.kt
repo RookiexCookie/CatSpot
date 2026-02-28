@@ -90,6 +90,7 @@ data class PlaylistInfo(
 data class PlaylistSummary(
     val uri: String,
     val name: String,
+    @SerialName("is_writable") val isWritable: Boolean = true,
 ) {
     companion object {
         fun listFromJson(jsonString: String): List<PlaylistSummary>? = try {
@@ -113,25 +114,53 @@ data class SearchResults(
     }
 }
 
+@Serializable
 data class AlbumSummary(
     val uri: String,
     val name: String,
-    val artistName: String,
-    val imageUrl: String? = null,
-)
+    @SerialName("artist_name") val artistName: String,
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("added_at") val addedAt: Long = 0,
+) {
+    companion object {
+        fun listFromJson(jsonString: String): List<AlbumSummary>? = try {
+            json.decodeFromString<List<AlbumSummary>>(jsonString)
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
 
+@Serializable
 data class ShowSummary(
     val uri: String,
     val name: String,
     val publisher: String,
-    val imageUrl: String? = null,
-)
+    @SerialName("image_url") val imageUrl: String? = null,
+) {
+    companion object {
+        fun listFromJson(jsonString: String): List<ShowSummary>? = try {
+            json.decodeFromString<List<ShowSummary>>(jsonString)
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
 
+@Serializable
 data class EpisodeSummary(
     val uri: String,
     val name: String,
     val description: String,
-    val durationMs: Int,
-    val releaseDate: String,
-    val imageUrl: String? = null,
-)
+    @SerialName("duration_ms") val durationMs: Int,
+    @SerialName("release_date") val releaseDate: String,
+    @SerialName("image_url") val imageUrl: String? = null,
+) {
+    companion object {
+        fun listFromJson(jsonString: String): List<EpisodeSummary>? = try {
+            json.decodeFromString<List<EpisodeSummary>>(jsonString)
+        } catch (_: Exception) {
+            null
+        }
+    }
+}

@@ -177,8 +177,8 @@ fun SidespotNavigation(
     // Navigate from login to library once connected, and load library data
     LaunchedEffect(state.isConnected) {
         if (state.isConnected) {
-            libraryViewModel.initApi(authManager)
             searchViewModel.initApi(authManager)
+            libraryViewModel.initApi(authManager)
             libraryViewModel.loadPlaylists()
             if (currentRoute == Routes.LOGIN) {
                 navController.navigate(Routes.LIBRARY) {
@@ -280,6 +280,9 @@ fun SidespotNavigation(
                             libraryViewModel = libraryViewModel,
                             searchViewModel = searchViewModel,
                             onAlbumClick = { uri ->
+                                navController.navigate(Routes.trackList(uri))
+                            },
+                            onPlaylistClick = { uri ->
                                 navController.navigate(Routes.trackList(uri))
                             },
                             onShowClick = { uri ->

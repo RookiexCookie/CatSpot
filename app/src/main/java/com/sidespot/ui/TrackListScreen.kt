@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.sidespot.api.ApiResult
 import com.sidespot.bridge.TrackInfo
 import com.sidespot.viewmodel.LibraryViewModel
 import com.sidespot.viewmodel.PlayerViewModel
@@ -69,9 +71,29 @@ fun TrackListScreen(
     val state by trackListViewModel.uiState.collectAsState()
     val libraryState by libraryViewModel.uiState.collectAsState()
     var selectedTrackUri by remember { mutableStateOf<String?>(null) }
+    var saveAlbumFeedback by remember { mutableStateOf<String?>(null) }
+    var savePlaylistFeedback by remember { mutableStateOf<String?>(null) }
+    val isAlbumSaved = libraryState.albums.any { it.uri == uri }
+    val isPlaylist = uri.startsWith("spotify:playlist:")
+    val isPlaylistSaved = libraryState.playlists.any { it.uri == uri }
 
     LaunchedEffect(uri) {
         trackListViewModel.loadTrackList(uri)
+    }
+
+    // Load saved albums if not yet loaded so we can derive saved status
+    LaunchedEffect(Unit) {
+        if (libraryState.albums.isEmpty() && !libraryState.isLoadingAlbums) {
+            libraryViewModel.loadSavedAlbums()
+        }
+    }
+
+    // Reset feedback text when saved status changes
+    LaunchedEffect(isAlbumSaved) {
+        saveAlbumFeedback = null
+    }
+    LaunchedEffect(isPlaylistSaved) {
+        savePlaylistFeedback = null
     }
 
     if (state.isLoading && state.tracks.isEmpty()) {
@@ -251,6 +273,62 @@ fun TrackListScreen(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Shuffle")
                         }
+                        if (state.isAlbum && !isAlbumSaved) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Button(
+                                onClick = {
+                                    libraryViewModel.saveAlbum(uri) { result ->
+                                        saveAlbumFeedback = when (result) {
+                                            is ApiResult.Success -> "Saved to Library"
+                                            is ApiResult.Error -> "Error: ${result.message}"
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary,
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusDarken(),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LibraryAdd,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(saveAlbumFeedback ?: "Save Album")
+                            }
+                        }
+                        if (isPlaylist && !isPlaylistSaved) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Button(
+                                onClick = {
+                                    libraryViewModel.savePlaylist(uri, state.name) { result ->
+                                        savePlaylistFeedback = when (result) {
+                                            is ApiResult.Success -> "Saved to Library"
+                                            is ApiResult.Error -> "Error: ${result.message}"
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary,
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusDarken(),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LibraryAdd,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(savePlaylistFeedback ?: "Follow Playlist")
+                            }
+                        }
                     } else {
                         // Inline buttons for touch
                         Row(
@@ -295,6 +373,66 @@ fun TrackListScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Play All")
+                            }
+                        }
+                        if (state.isAlbum && !isAlbumSaved) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                Button(
+                                    onClick = {
+                                        libraryViewModel.saveAlbum(uri) { result ->
+                                            saveAlbumFeedback = when (result) {
+                                                is ApiResult.Success -> "Saved to Library"
+                                                is ApiResult.Error -> "Error: ${result.message}"
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary,
+                                    ),
+                                    shape = RoundedCornerShape(20.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LibraryAdd,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(saveAlbumFeedback ?: "Save Album")
+                                }
+                            }
+                        }
+                        if (isPlaylist && !isPlaylistSaved) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                Button(
+                                    onClick = {
+                                        libraryViewModel.savePlaylist(uri, state.name) { result ->
+                                            savePlaylistFeedback = when (result) {
+                                                is ApiResult.Success -> "Saved to Library"
+                                                is ApiResult.Error -> "Error: ${result.message}"
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary,
+                                    ),
+                                    shape = RoundedCornerShape(20.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LibraryAdd,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(savePlaylistFeedback ?: "Follow Playlist")
+                                }
                             }
                         }
                     }
@@ -345,7 +483,7 @@ fun TrackListScreen(
         TrackActionsSheet(
             trackUri = selectedTrackUri!!,
             playerViewModel = playerViewModel,
-            playlists = libraryState.playlists,
+            playlists = libraryState.playlists.filter { it.isWritable },
             onDismiss = { selectedTrackUri = null },
             onGoToAlbum = if (!state.isAlbum && selectedTrack != null) {
                 { onGoToAlbum(selectedTrack.albumUri) }

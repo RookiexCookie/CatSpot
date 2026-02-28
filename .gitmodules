@@ -1,0 +1,3 @@
+[submodule "native/librespot-local"]
+	path = native/librespot-local
+	url = git@codeberg.org:jtaekman/librespot.git

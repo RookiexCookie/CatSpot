@@ -51,7 +51,6 @@ class MainActivity : ComponentActivity() {
                 val vm: PlayerViewModel = viewModel()
                 playerViewModel = vm
                 vm.initPlatform(this@MainActivity)
-                vm.initApi(authManager)
 
                 SidespotNavigation(
                     playerViewModel = vm,

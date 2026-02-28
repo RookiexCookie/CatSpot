@@ -1,7 +1,9 @@
 package com.sidespot.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,15 +21,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,9 +46,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.sidespot.api.ApiResult
 import com.sidespot.bridge.AlbumSummary
 import com.sidespot.viewmodel.LibraryViewModel
+import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SavedAlbumsScreen(
     libraryViewModel: LibraryViewModel,
@@ -46,6 +59,8 @@ fun SavedAlbumsScreen(
     onBack: () -> Unit,
 ) {
     val state by libraryViewModel.uiState.collectAsState()
+    var selectedAlbumUri by remember { mutableStateOf<String?>(null) }
+    var feedbackText by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         libraryViewModel.loadSavedAlbums()
@@ -86,24 +101,97 @@ fun SavedAlbumsScreen(
                     AlbumRow(
                         album = album,
                         onClick = { onAlbumClick(album.uri) },
+                        onLongClick = { selectedAlbumUri = album.uri },
                     )
+                }
+            }
+        }
+    }
+
+    // Bottom sheet for long-press actions
+    if (selectedAlbumUri != null) {
+        val albumName = state.albums.find { it.uri == selectedAlbumUri }?.name ?: "Album"
+
+        if (feedbackText != null) {
+            LaunchedEffect(feedbackText) {
+                delay(1000)
+                feedbackText = null
+                selectedAlbumUri = null
+            }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { selectedAlbumUri = null; feedbackText = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.dismissOnDpad { selectedAlbumUri = null; feedbackText = null },
+        ) {
+            Column(modifier = Modifier.navigationBarsPadding().padding(16.dp)) {
+                if (feedbackText != null) {
+                    Text(
+                        text = feedbackText!!,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusHighlight(onEnterKey = {
+                                libraryViewModel.unsaveAlbum(selectedAlbumUri!!) { result ->
+                                    feedbackText = when (result) {
+                                        is ApiResult.Success -> "Removed from Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            })
+                            .clickable {
+                                libraryViewModel.unsaveAlbum(selectedAlbumUri!!) { result ->
+                                    feedbackText = when (result) {
+                                        is ApiResult.Success -> "Removed from Library"
+                                        is ApiResult.Error -> "Error: ${result.message}"
+                                    }
+                                }
+                            }
+                            .padding(vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RemoveCircleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Remove from Library",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AlbumRow(
     album: AlbumSummary,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .focusHighlight()
-            .clickable(onClick = onClick)
+            .focusHighlight(onEnterKey = onLongClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

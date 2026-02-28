@@ -124,6 +124,46 @@ object NativeBridge {
     /** Search Spotify. Returns JSON search results. */
     external fun metadataSearch(query: String): String?
 
+    // -- Library write operations --
+
+    /** Add a track to liked songs via native collection v2. Returns JSON result. */
+    external fun libraryAddToLikedSongs(trackUri: String): String?
+
+    /** Save an album to the library via native collection v2. Returns JSON result. */
+    external fun librarySaveAlbum(albumUri: String): String?
+
+    /** Save a show to the library via native collection v2. Returns JSON result. */
+    external fun librarySaveShow(showUri: String): String?
+
+    /** Remove an album from the library via native collection v2. Returns JSON result. */
+    external fun libraryUnsaveAlbum(albumUri: String): String?
+
+    /** Remove a show from the library via native collection v2. Returns JSON result. */
+    external fun libraryUnsaveShow(showUri: String): String?
+
+    /** Save (follow) a playlist to the library via rootlist v2. Returns JSON result. */
+    external fun librarySavePlaylist(playlistUri: String): String?
+
+    /** Remove (unfollow) a playlist from the library via rootlist v2. Returns JSON result. */
+    external fun libraryUnsavePlaylist(playlistUri: String): String?
+
+    /** Add a track to an existing playlist via native playlist v2. Returns JSON result. */
+    external fun libraryAddToPlaylist(playlistUri: String, trackUri: String): String?
+
+    /** Create a new playlist via native rootlist v2. Returns JSON result with URI. */
+    external fun libraryCreatePlaylist(name: String): String?
+
+    // -- Library read operations --
+
+    /** Get user's saved albums via native collection v2. Returns JSON array. */
+    external fun metadataGetSavedAlbums(): String?
+
+    /** Get user's saved shows via native collection v2. Returns JSON array. */
+    external fun metadataGetSavedShows(): String?
+
+    /** Get episodes for a show. Returns JSON array of episode summaries. */
+    external fun metadataGetShowEpisodes(showUri: String): String?
+
     // -- Convenience --
 
     /** Initialize the native library. */

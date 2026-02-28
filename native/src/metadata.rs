@@ -69,6 +69,7 @@ pub struct PlaylistInfo {
 pub struct PlaylistSummary {
     pub uri: String,
     pub name: String,
+    pub is_writable: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -257,6 +258,8 @@ pub async fn get_user_playlists() -> Result<String> {
     let items = &content.contents.items;
     let meta_items = &content.contents.meta_items;
 
+    let username = session.username();
+
     let mut playlists = Vec::new();
     for (i, item) in items.iter().enumerate() {
         let uri = item.uri();
@@ -267,9 +270,24 @@ pub async fn get_user_playlists() -> Result<String> {
                 .and_then(|m| m.attributes.as_ref())
                 .map(|a| a.name().to_string())
                 .unwrap_or_default();
+
+            let owner = meta_items
+                .get(i)
+                .map(|m| m.owner_username().to_string())
+                .unwrap_or_default();
+
+            let collaborative = meta_items
+                .get(i)
+                .and_then(|m| m.attributes.as_ref())
+                .map(|a| a.collaborative())
+                .unwrap_or(false);
+
+            let is_writable = owner.is_empty() || owner == username || collaborative;
+
             playlists.push(PlaylistSummary {
                 uri: uri.to_string(),
                 name,
+                is_writable,
             });
         }
     }

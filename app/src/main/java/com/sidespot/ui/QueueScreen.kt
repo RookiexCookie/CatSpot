@@ -285,7 +285,7 @@ fun QueueScreen(
                         }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         LazyColumn {
-                            items(libraryState.playlists, key = { it.uri }) { playlist ->
+                            items(libraryState.playlists.filter { it.isWritable }, key = { it.uri }) { playlist ->
                                 Text(
                                     text = playlist.name.ifEmpty { "Untitled Playlist" },
                                     style = MaterialTheme.typography.bodyLarge,

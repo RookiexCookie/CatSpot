@@ -27,18 +27,28 @@ data class AlbumResult(
     val albumArtUrl: String?,
 )
 
+data class PlaylistResult(
+    val uri: String,
+    val name: String,
+    val ownerName: String,
+    val imageUrl: String?,
+)
+
 data class SearchUiState(
     val query: String = "",
     val trackUris: List<String> = emptyList(),
     val tracks: List<TrackInfo> = emptyList(),
     val albums: List<AlbumResult> = emptyList(),
     val shows: List<ShowSummary> = emptyList(),
+    val playlists: List<PlaylistResult> = emptyList(),
     val tracksDisplayLimit: Int = SEARCH_PAGE_SIZE,
     val albumsDisplayLimit: Int = SEARCH_PAGE_SIZE,
     val showsDisplayLimit: Int = SEARCH_PAGE_SIZE,
+    val playlistsDisplayLimit: Int = SEARCH_PAGE_SIZE,
     val hasMoreTracks: Boolean = false,
     val hasMoreAlbums: Boolean = false,
     val hasMoreShows: Boolean = false,
+    val hasMorePlaylists: Boolean = false,
     val isSearching: Boolean = false,
     val isLoadingMore: Boolean = false,
     val error: String? = null,
@@ -56,6 +66,7 @@ class SearchViewModel : ViewModel() {
     private var totalTracksAvailable = 0
     private var totalAlbumsAvailable = 0
     private var totalShowsAvailable = 0
+    private var totalPlaylistsAvailable = 0
 
     fun initApi(authManager: AuthManager) {
         if (webApi == null) {
@@ -71,6 +82,7 @@ class SearchViewModel : ViewModel() {
         totalTracksAvailable = 0
         totalAlbumsAvailable = 0
         totalShowsAvailable = 0
+        totalPlaylistsAvailable = 0
         if (query.isBlank()) {
             _uiState.update {
                 it.copy(
@@ -78,12 +90,15 @@ class SearchViewModel : ViewModel() {
                     tracks = emptyList(),
                     albums = emptyList(),
                     shows = emptyList(),
+                    playlists = emptyList(),
                     tracksDisplayLimit = SEARCH_PAGE_SIZE,
                     albumsDisplayLimit = SEARCH_PAGE_SIZE,
                     showsDisplayLimit = SEARCH_PAGE_SIZE,
+                    playlistsDisplayLimit = SEARCH_PAGE_SIZE,
                     hasMoreTracks = false,
                     hasMoreAlbums = false,
                     hasMoreShows = false,
+                    hasMorePlaylists = false,
                     error = null,
                 )
             }
@@ -110,18 +125,24 @@ class SearchViewModel : ViewModel() {
             val showsDeferred = viewModelScope.async(Dispatchers.IO) {
                 try { api.searchShows(query) } catch (_: Exception) { null }
             }
+            val playlistsDeferred = viewModelScope.async(Dispatchers.IO) {
+                try { api.searchPlaylists(query) } catch (_: Exception) { null }
+            }
 
             val tracksPage = tracksDeferred.await()
             val albumsPage = albumsDeferred.await()
             val showsPage = showsDeferred.await()
+            val playlistsPage = playlistsDeferred.await()
 
-            if (tracksPage != null || albumsPage != null || showsPage != null) {
+            if (tracksPage != null || albumsPage != null || showsPage != null || playlistsPage != null) {
                 totalTracksAvailable = tracksPage?.total ?: 0
                 totalAlbumsAvailable = albumsPage?.total ?: 0
                 totalShowsAvailable = showsPage?.total ?: 0
+                totalPlaylistsAvailable = playlistsPage?.total ?: 0
                 val tracks = tracksPage?.items ?: emptyList()
                 val albums = albumsPage?.items ?: emptyList()
                 val shows = showsPage?.items ?: emptyList()
+                val playlists = playlistsPage?.items ?: emptyList()
                 _uiState.update {
                     it.copy(
                         isSearching = false,
@@ -129,12 +150,15 @@ class SearchViewModel : ViewModel() {
                         trackUris = tracks.map { t -> t.uri },
                         albums = albums,
                         shows = shows,
+                        playlists = playlists,
                         tracksDisplayLimit = SEARCH_PAGE_SIZE,
                         albumsDisplayLimit = SEARCH_PAGE_SIZE,
                         showsDisplayLimit = SEARCH_PAGE_SIZE,
+                        playlistsDisplayLimit = SEARCH_PAGE_SIZE,
                         hasMoreTracks = tracks.size > SEARCH_PAGE_SIZE || totalTracksAvailable > tracks.size,
                         hasMoreAlbums = albums.size > SEARCH_PAGE_SIZE || totalAlbumsAvailable > albums.size,
                         hasMoreShows = shows.size > SEARCH_PAGE_SIZE || totalShowsAvailable > shows.size,
+                        hasMorePlaylists = playlists.size > SEARCH_PAGE_SIZE || totalPlaylistsAvailable > playlists.size,
                     )
                 }
                 return
@@ -270,6 +294,39 @@ class SearchViewModel : ViewModel() {
                 it.copy(
                     showsDisplayLimit = newLimit,
                     hasMoreShows = newLimit < it.shows.size || it.shows.size < totalShowsAvailable,
+                )
+            }
+        }
+    }
+
+    fun showMorePlaylists() {
+        val state = _uiState.value
+        val newLimit = state.playlistsDisplayLimit + SEARCH_PAGE_SIZE
+
+        if (newLimit > state.playlists.size && state.playlists.size < totalPlaylistsAvailable) {
+            viewModelScope.launch(Dispatchers.IO) {
+                _uiState.update { it.copy(isLoadingMore = true) }
+                val page = webApi?.searchPlaylists(state.query, offset = state.playlists.size)
+                if (page != null) {
+                    totalPlaylistsAvailable = page.total
+                    _uiState.update { s ->
+                        val allPlaylists = s.playlists + page.items
+                        s.copy(
+                            playlists = allPlaylists,
+                            playlistsDisplayLimit = newLimit,
+                            hasMorePlaylists = newLimit < allPlaylists.size || allPlaylists.size < totalPlaylistsAvailable,
+                            isLoadingMore = false,
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isLoadingMore = false) }
+                }
+            }
+        } else {
+            _uiState.update {
+                it.copy(
+                    playlistsDisplayLimit = newLimit,
+                    hasMorePlaylists = newLimit < it.playlists.size || it.playlists.size < totalPlaylistsAvailable,
                 )
             }
         }
