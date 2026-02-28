@@ -33,6 +33,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,12 +78,18 @@ fun LibraryScreen(
     var selectedPlaylistUri by remember { mutableStateOf<String?>(null) }
     var feedbackText by remember { mutableStateOf<String?>(null) }
     val likedSongsFocus = remember { FocusRequester() }
+    var likedSongsFocusReady by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
-            .focusProperties { enter = { likedSongsFocus } }
+            .focusProperties {
+                enter = {
+                    if (likedSongsFocusReady) likedSongsFocus
+                    else FocusRequester.Default
+                }
+            }
             .focusGroup(),
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -132,6 +139,10 @@ fun LibraryScreen(
             LazyColumn {
                 // Liked Songs entry
                 item {
+                    DisposableEffect(Unit) {
+                        likedSongsFocusReady = true
+                        onDispose { likedSongsFocusReady = false }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
