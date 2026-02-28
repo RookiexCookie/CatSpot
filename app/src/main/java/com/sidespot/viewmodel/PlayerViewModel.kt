@@ -61,6 +61,8 @@ class PlayerViewModel : ViewModel() {
 
     private var consecutiveErrors = 0
     private var isReconnecting = false
+    private var isPlayerStopped = false
+    private var stoppedPositionMs: Long = 0L
     private var tokenProvider: (suspend () -> String?)? = null
 
     /**
@@ -163,6 +165,7 @@ class PlayerViewModel : ViewModel() {
     }
 
     fun loadTrack(uri: String) {
+        isPlayerStopped = false
         viewModelScope.launch(Dispatchers.IO) {
             val cached = queueManager.state.value.trackMetadata[uri]
             _uiState.update {
@@ -229,7 +232,25 @@ class PlayerViewModel : ViewModel() {
     fun play() {
         viewModelScope.launch(Dispatchers.IO) {
             audioFocusManager?.requestFocus()
-            NativeBridge.playerPlay()
+            val state = _uiState.value
+            if (isPlayerStopped && state.trackUri.isNotEmpty()) {
+                isPlayerStopped = false
+                val resumeMs = stoppedPositionMs
+
+                _uiState.update { it.copy(isLoading = true, error = null) }
+
+                val error = NativeBridge.playerLoad(state.trackUri, true)
+                if (error != null) return@launch
+
+                if (resumeMs > 0) {
+                    NativeBridge.playerSeek(resumeMs.toInt())
+                }
+
+                appContext?.let { PlaybackService.startService(it) }
+                updatePlaybackService()
+            } else {
+                NativeBridge.playerPlay()
+            }
         }
     }
 
@@ -242,8 +263,11 @@ class PlayerViewModel : ViewModel() {
     }
 
     fun stop() {
+        isPlayerStopped = true
+        stoppedPositionMs = _positionMs.value
         viewModelScope.launch(Dispatchers.IO) {
             NativeBridge.playerStop()
+            audioCallback.release()
             audioFocusManager?.abandonFocus()
             appContext?.let { PlaybackService.stopService(it) }
         }
@@ -537,6 +561,7 @@ class PlayerViewModel : ViewModel() {
         when (event) {
             is PlayerEvent.Playing -> {
                 consecutiveErrors = 0
+                isPlayerStopped = false
                 val current = _uiState.value
                 _positionMs.value = event.positionMs.toLong()
                 if (!current.isPlaying || current.isLoading) {
@@ -555,9 +580,14 @@ class PlayerViewModel : ViewModel() {
                 }
             }
             is PlayerEvent.Stopped -> {
+                isPlayerStopped = true
+                stoppedPositionMs = _positionMs.value
                 _positionMs.value = 0L
                 _uiState.update { it.copy(isPlaying = false) }
-                updatePlaybackService()
+                // Don't call updatePlaybackService() here — it uses startForegroundService()
+                // which races with stopSelf() and causes ForegroundServiceDidNotStartInTimeException.
+                // The stop() function already handles stopping the service.
+                appContext?.let { PlaybackService.stopService(it) }
             }
             is PlayerEvent.Loading -> {
                 _uiState.update {
