@@ -42,7 +42,8 @@ class AuthManager(context: Context) {
             "streaming playlist-read playlist-read-private user-library-read " +
             "user-library-modify playlist-modify-public playlist-modify-private " +
             "user-read-playback-state user-modify-playback-state " +
-            "user-read-currently-playing user-read-private"
+            "user-read-currently-playing user-read-private " +
+            "user-read-recently-played"
         private const val AUTH_URL = "https://accounts.spotify.com/authorize"
         private const val TOKEN_URL = "https://accounts.spotify.com/api/token"
     }

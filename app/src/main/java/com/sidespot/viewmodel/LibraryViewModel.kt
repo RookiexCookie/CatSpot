@@ -17,8 +17,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+sealed class LibraryItem(val uri: String, val name: String) {
+    class Playlist(val summary: PlaylistSummary) : LibraryItem(summary.uri, summary.name)
+    class Album(
+        uri: String,
+        name: String,
+        val artistName: String,
+        val imageUrl: String? = null,
+    ) : LibraryItem(uri, name)
+}
+
 data class LibraryUiState(
     val playlists: List<PlaylistSummary> = emptyList(),
+    val libraryItems: List<LibraryItem> = emptyList(),
     val albums: List<AlbumSummary> = emptyList(),
     val shows: List<ShowSummary> = emptyList(),
     val episodes: List<EpisodeSummary> = emptyList(),
@@ -35,8 +46,54 @@ class LibraryViewModel : ViewModel() {
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
     private var api: SpotifyWebApi? = null
 
+    private var recentOrder: SpotifyWebApi.RecentlyPlayedOrder? = null
+    private var lastFetchedAt: Long = 0L
+    private val CACHE_TTL_MS = 2 * 60 * 1000L // 2 minutes
+
     fun initApi(authManager: AuthManager) {
         if (api == null) api = SpotifyWebApi(authManager)
+    }
+
+    private suspend fun refreshRecentOrder() {
+        val now = System.currentTimeMillis()
+        if (now - lastFetchedAt < CACHE_TTL_MS) return
+        val order = api?.getRecentlyPlayedOrder() ?: return
+        recentOrder = order
+        lastFetchedAt = now
+    }
+
+    private fun buildLibraryItems(playlists: List<PlaylistSummary>): List<LibraryItem> {
+        val order = recentOrder ?: return playlists.map { LibraryItem.Playlist(it) }
+        val orderedUris = order.orderedUris
+        if (orderedUris.isEmpty()) return playlists.map { LibraryItem.Playlist(it) }
+
+        val playlistByUri = playlists.associateBy { it.uri }
+        val orderIndex = orderedUris.withIndex().associate { (i, uri) -> uri to i }
+
+        // Build recent items (playlists + albums interleaved by recency)
+        val recentItems = mutableListOf<LibraryItem>()
+        for (uri in orderedUris) {
+            val playlist = playlistByUri[uri]
+            if (playlist != null) {
+                recentItems.add(LibraryItem.Playlist(playlist))
+                continue
+            }
+            val album = order.albumDetails[uri]
+            if (album != null) {
+                recentItems.add(LibraryItem.Album(
+                    uri = album.uri,
+                    name = album.name,
+                    artistName = album.artistName,
+                    imageUrl = album.imageUrl,
+                ))
+            }
+        }
+
+        // Append playlists not in recent order
+        val remaining = playlists.filter { it.uri !in orderIndex }
+            .map { LibraryItem.Playlist(it) }
+
+        return recentItems + remaining
     }
 
     fun loadPlaylists() {
@@ -59,8 +116,10 @@ class LibraryViewModel : ViewModel() {
 
             val playlists = PlaylistSummary.listFromJson(json)
             if (playlists != null) {
+                refreshRecentOrder()
+                val items = buildLibraryItems(playlists)
                 _uiState.update {
-                    it.copy(playlists = playlists, isLoading = false)
+                    it.copy(playlists = playlists, libraryItems = items, isLoading = false)
                 }
             } else {
                 _uiState.update {

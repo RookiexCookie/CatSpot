@@ -215,6 +215,101 @@ class SpotifyWebApi(private val authManager: AuthManager) {
         }
     }
 
+    data class RecentAlbumInfo(
+        val uri: String,
+        val name: String,
+        val artistName: String,
+        val imageUrl: String? = null,
+    )
+
+    data class RecentlyPlayedOrder(
+        /** All context URIs in recency order (playlists + albums interleaved). */
+        val orderedUris: List<String> = emptyList(),
+        /** Metadata for recently played albums, keyed by URI. */
+        val albumDetails: Map<String, RecentAlbumInfo> = emptyMap(),
+    )
+
+    /**
+     * Fetch playlist and album URIs from the user's recently-played history,
+     * deduplicated and ordered by most recently played first.
+     * GET /v1/me/player/recently-played?limit=50
+     */
+    suspend fun getRecentlyPlayedOrder(): RecentlyPlayedOrder = withContext(Dispatchers.IO) {
+        val token = authManager.getValidAccessToken()
+            ?: return@withContext RecentlyPlayedOrder()
+        val seenUris = linkedSetOf<String>()
+        val albumDetails = mutableMapOf<String, RecentAlbumInfo>()
+        var beforeCursor: String? = null
+
+        for (page in 0 until 20) {
+            val urlStr = buildString {
+                append("$BASE_URL/me/player/recently-played?limit=50")
+                if (beforeCursor != null) append("&before=$beforeCursor")
+            }
+            val conn = URL(urlStr).openConnection() as HttpURLConnection
+            try {
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                if (conn.responseCode !in 200..299) {
+                    val err = conn.errorStream?.bufferedReader()?.readText()
+                    android.util.Log.w("SpotifyWebApi", "getRecentlyPlayed HTTP ${conn.responseCode}: $err")
+                    if (conn.responseCode == 403) {
+                        android.util.Log.w("SpotifyWebApi", "Missing scope — logging out to re-authorize")
+                        authManager.logout()
+                    }
+                    break
+                }
+                val body = conn.inputStream.bufferedReader().readText()
+                val json = JSONObject(body)
+                val items = json.optJSONArray("items")
+                if (items == null || items.length() == 0) break
+
+                for (i in 0 until items.length()) {
+                    val item = items.getJSONObject(i)
+                    val context = item.optJSONObject("context") ?: continue
+                    val uri = context.getString("uri")
+                    val type = context.optString("type")
+
+                    if (type == "playlist" || type == "album") {
+                        seenUris.add(uri)
+                    }
+
+                    if (type == "album" && uri !in albumDetails) {
+                        val track = item.optJSONObject("track")
+                        val album = track?.optJSONObject("album")
+                        if (album != null) {
+                            val artists = album.optJSONArray("artists")
+                            val artistName = if (artists != null) {
+                                (0 until artists.length()).mapNotNull {
+                                    artists.optJSONObject(it)?.optString("name")
+                                }.joinToString(", ")
+                            } else ""
+                            val images = album.optJSONArray("images")
+                            val imageUrl = if (images != null && images.length() > 0)
+                                images.getJSONObject(0).getString("url") else null
+                            albumDetails[uri] = RecentAlbumInfo(
+                                uri = uri,
+                                name = album.optString("name", ""),
+                                artistName = artistName,
+                                imageUrl = imageUrl,
+                            )
+                        }
+                    }
+                }
+
+                val cursors = json.optJSONObject("cursors")
+                beforeCursor = cursors?.optString("before", "")?.ifEmpty { null }
+                if (beforeCursor == null) break
+            } catch (e: Exception) {
+                android.util.Log.e("SpotifyWebApi", "getRecentlyPlayed failed on page $page", e)
+                break
+            } finally {
+                conn.disconnect()
+            }
+        }
+
+        RecentlyPlayedOrder(seenUris.toList(), albumDetails)
+    }
+
     /**
      * Search for playlists.
      * GET /v1/search?type=playlist&q={query}&limit=10

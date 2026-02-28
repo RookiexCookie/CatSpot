@@ -39,17 +39,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sidespot.api.ApiResult
+import com.sidespot.viewmodel.LibraryItem
 import com.sidespot.viewmodel.LibraryViewModel
 import kotlinx.coroutines.delay
 
@@ -57,6 +65,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (uri: String) -> Unit,
+    onAlbumClick: (uri: String) -> Unit = {},
     onLikedSongsClick: () -> Unit,
     onSavedAlbumsClick: () -> Unit = {},
     onPodcastsClick: () -> Unit = {},
@@ -64,6 +73,7 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = viewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var selectedPlaylistUri by remember { mutableStateOf<String?>(null) }
     var feedbackText by remember { mutableStateOf<String?>(null) }
     val likedSongsFocus = remember { FocusRequester() }
@@ -199,33 +209,76 @@ fun LibraryScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                 }
 
-                // Playlists
-                items(state.playlists, key = { it.uri }) { playlist ->
+                // Playlists and recently played albums
+                items(state.libraryItems, key = { it.uri }) { item ->
+                    val isPlaylist = item is LibraryItem.Playlist
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .focusHighlight(onEnterKey = { selectedPlaylistUri = playlist.uri })
+                            .focusHighlight(onEnterKey = {
+                                if (isPlaylist) selectedPlaylistUri = item.uri
+                            })
                             .combinedClickable(
-                                onClick = { onPlaylistClick(playlist.uri) },
-                                onLongClick = { selectedPlaylistUri = playlist.uri },
+                                onClick = {
+                                    if (isPlaylist) onPlaylistClick(item.uri)
+                                    else onAlbumClick(item.uri)
+                                },
+                                onLongClick = {
+                                    if (isPlaylist) selectedPlaylistUri = item.uri
+                                },
                             )
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.QueueMusic,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = playlist.name.ifEmpty { "Untitled Playlist" },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        val imageUrl = (item as? LibraryItem.Album)?.imageUrl
+                        if (imageUrl != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(imageUrl).size(128).build(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(6.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaylist) Icons.Default.QueueMusic
+                                        else Icons.Default.Album,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = item.name.ifEmpty {
+                                    if (isPlaylist) "Untitled Playlist" else "Untitled Album"
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (item is LibraryItem.Album && item.artistName.isNotEmpty()) {
+                                Text(
+                                    text = item.artistName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                 }

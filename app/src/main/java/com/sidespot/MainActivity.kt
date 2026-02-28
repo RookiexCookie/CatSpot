@@ -65,9 +65,13 @@ class MainActivity : ComponentActivity() {
         // reach dispatchKeyEvent immediately (Android consumes the first
         // navigation-key press to exit touch mode, swallowing it).
         window.decorView.apply {
-            post { requestFocusFromTouch() }
+            post {
+                try { requestFocusFromTouch() } catch (_: IllegalStateException) {}
+            }
             viewTreeObserver.addOnTouchModeChangeListener { inTouchMode ->
-                if (inTouchMode) post { requestFocusFromTouch() }
+                if (inTouchMode) post {
+                    try { requestFocusFromTouch() } catch (_: IllegalStateException) {}
+                }
             }
         }
     }

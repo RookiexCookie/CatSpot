@@ -266,6 +266,9 @@ fun SidespotNavigation(
                             onPlaylistClick = { uri ->
                                 navController.navigate(Routes.trackList(uri))
                             },
+                            onAlbumClick = { uri ->
+                                navController.navigate(Routes.trackList(uri))
+                            },
                             onLikedSongsClick = {
                                 navController.navigate(Routes.trackList("liked_songs"))
                             },
