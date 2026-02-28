@@ -24,3 +24,9 @@
 -keepclasseswithmembers class com.sidespot.bridge.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Strip debug/verbose logs from release builds
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}

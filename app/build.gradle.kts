@@ -102,6 +102,9 @@ dependencies {
     // Palette (dynamic theming from album art)
     implementation("androidx.palette:palette:1.0.0")
 
+    // Encrypted storage for auth tokens
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
     // Debug tools
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
