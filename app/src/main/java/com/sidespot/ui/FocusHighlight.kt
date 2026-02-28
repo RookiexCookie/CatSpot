@@ -23,6 +23,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+private val DPAD_NAV_CODES = setOf(
+    KeyEvent.KEYCODE_DPAD_UP,
+    KeyEvent.KEYCODE_DPAD_DOWN,
+    KeyEvent.KEYCODE_DPAD_LEFT,
+    KeyEvent.KEYCODE_DPAD_RIGHT,
+)
+
 private val DPAD_BACK_CODES = setOf(
     KeyEvent.KEYCODE_DPAD_RIGHT,
 )
@@ -55,7 +62,11 @@ fun Modifier.focusHighlight(
         .onPreviewKeyEvent { event ->
             val native = event.nativeKeyEvent
             if (native.action == KeyEvent.ACTION_DOWN) {
+                val wasInactive = !dpadActive.value
                 dpadActive.value = true
+                if (wasInactive && native.keyCode in DPAD_NAV_CODES) {
+                    return@onPreviewKeyEvent true
+                }
             }
             if (onEnterKey != null && hasFocus) {
                 val kc = native.keyCode

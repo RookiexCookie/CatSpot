@@ -48,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -80,16 +79,16 @@ fun LibraryScreen(
     val likedSongsFocus = remember { FocusRequester() }
     var likedSongsFocusReady by remember { mutableStateOf(false) }
 
+    LaunchedEffect(likedSongsFocusReady) {
+        if (likedSongsFocusReady) {
+            try { likedSongsFocus.requestFocus() } catch (_: IllegalStateException) {}
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
-            .focusProperties {
-                enter = {
-                    if (likedSongsFocusReady) likedSongsFocus
-                    else FocusRequester.Default
-                }
-            }
             .focusGroup(),
     ) {
         Spacer(modifier = Modifier.height(16.dp))
