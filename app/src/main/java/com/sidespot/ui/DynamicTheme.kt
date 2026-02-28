@@ -1,6 +1,7 @@
 package com.sidespot.ui
 
 import android.graphics.Bitmap
+import android.util.LruCache
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,8 @@ private val DefaultSurface = Color(0xFF1E1E1E)
 private val DefaultSurfaceVariant = Color(0xFF282828)
 private val DefaultBackground = Color(0xFF121212)
 
+private val paletteCache = LruCache<String, AlbumColors>(20)
+
 @Composable
 fun rememberAlbumColors(albumArtUrl: String?): AlbumColors {
     var colors by remember { mutableStateOf(AlbumColors()) }
@@ -45,9 +48,17 @@ fun rememberAlbumColors(albumArtUrl: String?): AlbumColors {
             return@LaunchedEffect
         }
 
+        val cached = paletteCache.get(albumArtUrl)
+        if (cached != null) {
+            colors = cached
+            return@LaunchedEffect
+        }
+
         val bitmap = loadBitmap(context, albumArtUrl) ?: return@LaunchedEffect
         val palette = Palette.from(bitmap).maximumColorCount(16).generate()
-        colors = extractColors(palette)
+        val extracted = extractColors(palette)
+        paletteCache.put(albumArtUrl, extracted)
+        colors = extracted
     }
 
     return colors

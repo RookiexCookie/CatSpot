@@ -87,7 +87,7 @@ fun QueueScreen(
             .padding(horizontal = 16.dp),
     ) {
         // Header
-        item {
+        item(contentType = "header") {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Queue",
@@ -99,7 +99,7 @@ fun QueueScreen(
 
         // Now playing
         if (playerState.trackUri.isNotEmpty()) {
-            item {
+            item(contentType = "now_playing") {
                 Text(
                     text = "Now Playing",
                     style = MaterialTheme.typography.labelLarge,
@@ -117,7 +117,7 @@ fun QueueScreen(
 
         // User queue header
         if (queueState.userQueue.isNotEmpty()) {
-            item {
+            item(contentType = "header") {
                 Text(
                     text = "Next in Queue",
                     style = MaterialTheme.typography.labelLarge,
@@ -128,7 +128,7 @@ fun QueueScreen(
         }
 
         // User queue items
-        itemsIndexed(queueState.userQueue, key = { index, uri -> "uq_${index}_$uri" }) { index, uri ->
+        itemsIndexed(queueState.userQueue, key = { index, uri -> "uq_${index}_$uri" }, contentType = { _, _ -> "track" }) { index, uri ->
             val metadata = queueState.trackMetadata[uri]
             Box(
                 modifier = Modifier
@@ -149,7 +149,7 @@ fun QueueScreen(
 
         // Context queue header
         if (upcoming.isNotEmpty()) {
-            item {
+            item(contentType = "header") {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = if (queueState.contextName.isNotEmpty())
@@ -164,7 +164,7 @@ fun QueueScreen(
 
         // Context queue items
         val displayUpcoming = upcoming.take(20)
-        itemsIndexed(displayUpcoming, key = { index, uri -> "ctx_${index}_$uri" }) { index, uri ->
+        itemsIndexed(displayUpcoming, key = { index, uri -> "ctx_${index}_$uri" }, contentType = { _, _ -> "track" }) { index, uri ->
             val metadata = queueState.trackMetadata[uri]
             val absoluteIndex = queueState.contextIndex + 1 + index
             Box(
@@ -185,7 +185,7 @@ fun QueueScreen(
         }
 
         if (upcoming.size > 20) {
-            item {
+            item(contentType = "footer") {
                 Text(
                     text = "...and ${upcoming.size - 20} more",
                     style = MaterialTheme.typography.bodySmall,
@@ -197,7 +197,7 @@ fun QueueScreen(
 
         // Empty state
         if (queueState.userQueue.isEmpty() && upcoming.isEmpty() && playerState.trackUri.isEmpty()) {
-            item {
+            item(contentType = "empty") {
                 Text(
                     text = "Queue is empty",
                     style = MaterialTheme.typography.bodyMedium,
@@ -419,7 +419,7 @@ private fun QueueTrackRow(
         // Album art thumbnail
         if (albumArtUrl != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(albumArtUrl).size(128).build(),
+                model = ImageRequest.Builder(context).data(albumArtUrl).size(80).build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(40.dp)

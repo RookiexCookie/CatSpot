@@ -137,7 +137,7 @@ fun LibraryScreen(
         } else {
             LazyColumn {
                 // Liked Songs entry
-                item {
+                item(contentType = "nav_entry") {
                     DisposableEffect(Unit) {
                         likedSongsFocusReady = true
                         onDispose { likedSongsFocusReady = false }
@@ -168,7 +168,7 @@ fun LibraryScreen(
                 }
 
                 // Saved Albums entry
-                item {
+                item(contentType = "nav_entry") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -194,7 +194,7 @@ fun LibraryScreen(
                 }
 
                 // Podcasts entry
-                item {
+                item(contentType = "nav_entry") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -220,7 +220,7 @@ fun LibraryScreen(
                 }
 
                 // Playlists and recently played albums
-                items(state.libraryItems, key = { it.uri }) { item ->
+                items(state.libraryItems, key = { it.uri }, contentType = { if (it is LibraryItem.Playlist) "playlist" else "album" }) { item ->
                     val isPlaylist = item is LibraryItem.Playlist
                     Row(
                         modifier = Modifier
@@ -244,7 +244,7 @@ fun LibraryScreen(
                         if (imageUrl != null) {
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
-                                    .data(imageUrl).size(128).build(),
+                                    .data(imageUrl).size(80).build(),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(40.dp)

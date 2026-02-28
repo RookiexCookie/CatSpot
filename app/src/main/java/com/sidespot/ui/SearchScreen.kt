@@ -148,7 +148,7 @@ fun SearchScreen(
             LazyColumn {
                 // Songs section
                 if (state.tracks.isNotEmpty()) {
-                    item {
+                    item(contentType = "header") {
                         Text(
                             text = "Songs",
                             style = MaterialTheme.typography.labelLarge,
@@ -157,7 +157,7 @@ fun SearchScreen(
                         )
                     }
 
-                    itemsIndexed(displayedTracks, key = { _, track -> track.uri }) { index, track ->
+                    itemsIndexed(displayedTracks, key = { _, track -> track.uri }, contentType = { _, _ -> "track" }) { index, track ->
                         SearchResultRow(
                             track = track,
                             onClick = {
@@ -172,7 +172,7 @@ fun SearchScreen(
                     }
 
                     if (state.hasMoreTracks) {
-                        item {
+                        item(contentType = "show_more") {
                             Text(
                                 text = "Show More...",
                                 style = MaterialTheme.typography.labelLarge,
@@ -188,7 +188,7 @@ fun SearchScreen(
 
                 // Albums section
                 if (state.albums.isNotEmpty()) {
-                    item {
+                    item(contentType = "header") {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Albums",
@@ -198,7 +198,7 @@ fun SearchScreen(
                         )
                     }
 
-                    itemsIndexed(displayedAlbums, key = { _, album -> album.uri }) { _, album ->
+                    itemsIndexed(displayedAlbums, key = { _, album -> album.uri }, contentType = { _, _ -> "album" }) { _, album ->
                         AlbumResultRow(
                             album = album,
                             onClick = { onAlbumClick(album.uri) },
@@ -206,7 +206,7 @@ fun SearchScreen(
                     }
 
                     if (state.hasMoreAlbums) {
-                        item {
+                        item(contentType = "show_more") {
                             Text(
                                 text = "Show More...",
                                 style = MaterialTheme.typography.labelLarge,
@@ -222,7 +222,7 @@ fun SearchScreen(
 
                 // Playlists section
                 if (state.playlists.isNotEmpty()) {
-                    item {
+                    item(contentType = "header") {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Playlists",
@@ -232,7 +232,7 @@ fun SearchScreen(
                         )
                     }
 
-                    itemsIndexed(displayedPlaylists, key = { _, playlist -> playlist.uri }) { _, playlist ->
+                    itemsIndexed(displayedPlaylists, key = { _, playlist -> playlist.uri }, contentType = { _, _ -> "playlist" }) { _, playlist ->
                         PlaylistResultRow(
                             playlist = playlist,
                             onClick = { onPlaylistClick(playlist.uri) },
@@ -241,7 +241,7 @@ fun SearchScreen(
                     }
 
                     if (state.hasMorePlaylists) {
-                        item {
+                        item(contentType = "show_more") {
                             Text(
                                 text = "Show More...",
                                 style = MaterialTheme.typography.labelLarge,
@@ -257,7 +257,7 @@ fun SearchScreen(
 
                 // Podcasts section
                 if (state.shows.isNotEmpty()) {
-                    item {
+                    item(contentType = "header") {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Podcasts",
@@ -267,7 +267,7 @@ fun SearchScreen(
                         )
                     }
 
-                    itemsIndexed(displayedShows, key = { _, show -> show.uri }) { _, show ->
+                    itemsIndexed(displayedShows, key = { _, show -> show.uri }, contentType = { _, _ -> "show" }) { _, show ->
                         ShowResultRow(
                             show = show,
                             onClick = { onShowClick(show.uri) },
@@ -275,7 +275,7 @@ fun SearchScreen(
                     }
 
                     if (state.hasMoreShows) {
-                        item {
+                        item(contentType = "show_more") {
                             Text(
                                 text = "Show More...",
                                 style = MaterialTheme.typography.labelLarge,
@@ -290,7 +290,7 @@ fun SearchScreen(
                 }
 
                 if (state.isSearching || state.isLoadingMore) {
-                    item {
+                    item(contentType = "loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -463,7 +463,7 @@ private fun SearchResultRow(
         // Album art thumbnail
         if (track.albumArtUrl != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(track.albumArtUrl).size(128).build(),
+                model = ImageRequest.Builder(context).data(track.albumArtUrl).size(88).build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(44.dp)
@@ -530,7 +530,7 @@ private fun AlbumResultRow(
     ) {
         if (album.albumArtUrl != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(album.albumArtUrl).size(128).build(),
+                model = ImageRequest.Builder(context).data(album.albumArtUrl).size(96).build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)
@@ -596,7 +596,7 @@ private fun PlaylistResultRow(
     ) {
         if (playlist.imageUrl != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(playlist.imageUrl).size(128).build(),
+                model = ImageRequest.Builder(context).data(playlist.imageUrl).size(96).build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)
@@ -657,7 +657,7 @@ private fun ShowResultRow(
     ) {
         if (show.imageUrl != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(show.imageUrl).size(128).build(),
+                model = ImageRequest.Builder(context).data(show.imageUrl).size(96).build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)

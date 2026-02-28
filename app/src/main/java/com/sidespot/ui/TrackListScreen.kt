@@ -176,7 +176,7 @@ fun TrackListScreen(
                 .padding(horizontal = 16.dp),
         ) {
             // Header with back button
-            item {
+            item(contentType = "header") {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
@@ -199,14 +199,14 @@ fun TrackListScreen(
 
             // Album art
             if (state.albumArtUrl != null) {
-                item {
+                item(contentType = "album_art") {
                     Spacer(modifier = Modifier.height(8.dp))
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center,
                     ) {
                         AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current).data(state.albumArtUrl).size(360).build(),
+                            model = ImageRequest.Builder(LocalContext.current).data(state.albumArtUrl).size(240).build(),
                             contentDescription = "Album art",
                             modifier = Modifier
                                 .size(120.dp)
@@ -219,7 +219,7 @@ fun TrackListScreen(
 
             // Track count + Play All
             if (state.trackUris.isNotEmpty()) {
-                item {
+                item(contentType = "controls") {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "${state.trackUris.size} tracks",
@@ -451,7 +451,7 @@ fun TrackListScreen(
             }
 
             // Track list
-            itemsIndexed(state.tracks, key = { _, track -> track.uri }) { index, track ->
+            itemsIndexed(state.tracks, key = { _, track -> track.uri }, contentType = { _, _ -> "track" }) { index, track ->
                 TrackRow(
                     index = index + 1,
                     track = track,
@@ -469,7 +469,7 @@ fun TrackListScreen(
 
             // Show loading indicator while fetching more tracks
             if (state.isLoading) {
-                item {
+                item(contentType = "loading") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -538,7 +538,7 @@ private fun TrackRow(
         if (showAlbumArt) {
             if (track.albumArtUrl != null) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context).data(track.albumArtUrl).size(128).build(),
+                    model = ImageRequest.Builder(context).data(track.albumArtUrl).size(80).build(),
                     contentDescription = null,
                     modifier = Modifier
                         .size(40.dp)

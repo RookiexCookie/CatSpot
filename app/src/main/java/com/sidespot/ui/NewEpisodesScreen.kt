@@ -126,7 +126,7 @@ fun NewEpisodesScreen(
             }
         } else {
             LazyColumn {
-                itemsIndexed(displayedEpisodes, key = { _, ep -> ep.uri }) { index, episode ->
+                itemsIndexed(displayedEpisodes, key = { _, ep -> ep.uri }, contentType = { _, _ -> "episode" }) { index, episode ->
                     if (index == 0) {
                         DisposableEffect(Unit) {
                             firstEpisodeFocusReady = true
@@ -161,7 +161,7 @@ fun NewEpisodesScreen(
                 }
 
                 if (state.hasMoreNewEpisodes) {
-                    item {
+                    item(contentType = "show_more") {
                         Text(
                             text = "Show More...",
                             style = MaterialTheme.typography.labelLarge,

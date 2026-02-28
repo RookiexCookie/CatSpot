@@ -162,7 +162,7 @@ fun ShowDetailScreen(
             }
         } else {
             LazyColumn {
-                itemsIndexed(state.episodes, key = { _, episode -> episode.uri }) { index, episode ->
+                itemsIndexed(state.episodes, key = { _, episode -> episode.uri }, contentType = { _, _ -> "episode" }) { index, episode ->
                     if (index == 0 && isShowSaved) {
                         DisposableEffect(Unit) {
                             firstContentFocusReady = true

@@ -528,7 +528,7 @@ class PlayerViewModel : ViewModel() {
                         handlePlayerEvent(event)
                     }
                 }
-                delay(50)
+                delay(150)
             }
         }
     }

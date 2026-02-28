@@ -115,6 +115,7 @@ fun NowPlayingScreen(
         val result = context.imageLoader.execute(
             ImageRequest.Builder(context)
                 .data(url)
+                .size(720)
                 .allowHardware(false)
                 .build(),
         )

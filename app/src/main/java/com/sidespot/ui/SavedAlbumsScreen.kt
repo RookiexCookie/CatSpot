@@ -118,7 +118,7 @@ fun SavedAlbumsScreen(
             }
         } else {
             LazyColumn {
-                itemsIndexed(state.albums, key = { _, album -> album.uri }) { index, album ->
+                itemsIndexed(state.albums, key = { _, album -> album.uri }, contentType = { _, _ -> "album" }) { index, album ->
                     if (index == 0) {
                         DisposableEffect(Unit) {
                             firstAlbumFocusReady = true
@@ -226,7 +226,7 @@ private fun AlbumRow(
     ) {
         if (album.imageUrl != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(album.imageUrl).size(128).build(),
+                model = ImageRequest.Builder(context).data(album.imageUrl).size(96).build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)

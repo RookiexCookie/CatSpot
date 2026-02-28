@@ -131,7 +131,7 @@ fun SavedShowsScreen(
             }
         } else {
             LazyColumn {
-                item {
+                item(contentType = "nav_entry") {
                     DisposableEffect(Unit) {
                         newEpisodesFocusReady = true
                         onDispose { newEpisodesFocusReady = false }
@@ -167,7 +167,7 @@ fun SavedShowsScreen(
                         )
                     }
                 }
-                items(state.shows, key = { it.uri }) { show ->
+                items(state.shows, key = { it.uri }, contentType = { "show" }) { show ->
                     ShowRow(
                         show = show,
                         onClick = { onShowClick(show.uri) },
@@ -265,7 +265,7 @@ private fun ShowRow(
     ) {
         if (show.imageUrl != null) {
             AsyncImage(
-                model = ImageRequest.Builder(context).data(show.imageUrl).size(128).build(),
+                model = ImageRequest.Builder(context).data(show.imageUrl).size(96).build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)
