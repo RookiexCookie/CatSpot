@@ -59,6 +59,10 @@ class PlayerViewModel : ViewModel() {
     private var mediaCommandReceiver: BroadcastReceiver? = null
     private var savedVolumeBeforeDuck: Int? = null
 
+    private var consecutiveErrors = 0
+    private var isReconnecting = false
+    private var tokenProvider: (suspend () -> String?)? = null
+
     /**
      * Initialize platform services. Called from MainActivity after ViewModel creation.
      * Uses application context to avoid activity leak.
@@ -107,7 +111,8 @@ class PlayerViewModel : ViewModel() {
         )
     }
 
-    fun connect(accessToken: String) {
+    fun connect(accessToken: String, getToken: (suspend () -> String?)? = null) {
+        tokenProvider = getToken
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(connectionStatus = "Connecting...", error = null) }
 
@@ -531,6 +536,7 @@ class PlayerViewModel : ViewModel() {
     private fun handlePlayerEvent(event: PlayerEvent) {
         when (event) {
             is PlayerEvent.Playing -> {
+                consecutiveErrors = 0
                 val current = _uiState.value
                 _positionMs.value = event.positionMs.toLong()
                 if (!current.isPlaying || current.isLoading) {
@@ -573,12 +579,51 @@ class PlayerViewModel : ViewModel() {
                 }
             }
             is PlayerEvent.Error -> {
-                // Skip to next track on error
-                val nextUri = queueManager.next()
-                if (nextUri != null) {
-                    loadTrack(nextUri)
+                if (isReconnecting) return
+                consecutiveErrors++
+                if (consecutiveErrors < 2) {
+                    // Single error — likely a bad track, skip to next
+                    val nextUri = queueManager.next()
+                    if (nextUri != null) {
+                        loadTrack(nextUri)
+                    }
+                } else {
+                    // Multiple consecutive errors — session likely dead, reconnect
+                    val currentUri = _uiState.value.trackUri
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val reconnected = attemptReconnect()
+                        if (reconnected && currentUri.isNotEmpty()) {
+                            loadTrack(currentUri)
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    isPlaying = false,
+                                    isLoading = false,
+                                    error = "Playback failed. Please reconnect.",
+                                )
+                            }
+                            audioFocusManager?.abandonFocus()
+                            appContext?.let { PlaybackService.stopService(it) }
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    private suspend fun attemptReconnect(): Boolean {
+        isReconnecting = true
+        try {
+            NativeBridge.sessionDisconnect()
+            val token = tokenProvider?.invoke() ?: return false
+            val error = NativeBridge.sessionConnect(token)
+            if (error != null) return false
+            val playerError = NativeBridge.playerRecreate()
+            if (playerError != null) return false
+            consecutiveErrors = 0
+            return true
+        } finally {
+            isReconnecting = false
         }
     }
 

@@ -169,7 +169,7 @@ fun SidespotNavigation(
         if (authState.isAuthenticated && !state.isConnected && !authState.isLoading) {
             val token = authManager.getValidAccessToken()
             if (token != null) {
-                playerViewModel.connect(token)
+                playerViewModel.connect(token) { authManager.getValidAccessToken() }
             }
         }
     }
