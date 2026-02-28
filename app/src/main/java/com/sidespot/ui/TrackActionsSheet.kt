@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +54,7 @@ fun TrackActionsSheet(
     playerViewModel: PlayerViewModel,
     playlists: List<PlaylistSummary>,
     onDismiss: () -> Unit,
+    onGoToAlbum: (() -> Unit)? = null,
 ) {
     var view by remember { mutableStateOf(SheetView.Actions) }
     var feedbackText by remember { mutableStateOf("") }
@@ -90,6 +92,12 @@ fun TrackActionsSheet(
                     }
                     SheetActionRow(Icons.Default.Add, "Add to Playlist...") {
                         view = SheetView.PlaylistPicker
+                    }
+                    if (onGoToAlbum != null) {
+                        SheetActionRow(Icons.Default.Album, "Go to Album") {
+                            onDismiss()
+                            onGoToAlbum()
+                        }
                     }
                 }
             }
@@ -236,7 +244,7 @@ private fun SheetActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .focusHighlight()
+            .focusHighlight(onEnterKey = onClick)
             .clickable(onClick = onClick)
             .padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

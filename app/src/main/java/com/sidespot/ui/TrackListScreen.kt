@@ -63,6 +63,7 @@ fun TrackListScreen(
     playerViewModel: PlayerViewModel,
     libraryViewModel: LibraryViewModel = viewModel(),
     onBack: () -> Unit,
+    onGoToAlbum: (String) -> Unit = {},
     trackListViewModel: TrackListViewModel = viewModel(key = uri),
 ) {
     val state by trackListViewModel.uiState.collectAsState()
@@ -340,11 +341,15 @@ fun TrackListScreen(
 
     // Bottom sheet for long-press actions
     if (selectedTrackUri != null) {
+        val selectedTrack = state.tracks.find { it.uri == selectedTrackUri }
         TrackActionsSheet(
             trackUri = selectedTrackUri!!,
             playerViewModel = playerViewModel,
             playlists = libraryState.playlists,
             onDismiss = { selectedTrackUri = null },
+            onGoToAlbum = if (!state.isAlbum && selectedTrack != null) {
+                { onGoToAlbum(selectedTrack.albumUri) }
+            } else null,
         )
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.RemoveCircleOutline
@@ -64,6 +65,7 @@ import com.sidespot.viewmodel.PlayerViewModel
 fun QueueScreen(
     playerViewModel: PlayerViewModel,
     libraryViewModel: LibraryViewModel = viewModel(),
+    onGoToAlbum: (String) -> Unit = {},
 ) {
     val playerState by playerViewModel.uiState.collectAsState()
     val queueState by playerViewModel.queueManager.state.collectAsState()
@@ -243,6 +245,13 @@ fun QueueScreen(
                             }
                             QueueSheetActionRow(Icons.Default.Add, "Add to Playlist...") {
                                 sheetView = "playlists"
+                            }
+                            val albumUri = queueState.trackMetadata[selectedUri]?.albumUri
+                            if (albumUri != null) {
+                                QueueSheetActionRow(Icons.Default.Album, "Go to Album") {
+                                    selectedQueueIndex = null
+                                    onGoToAlbum(albumUri)
+                                }
                             }
                         }
                     }
@@ -471,7 +480,7 @@ private fun QueueSheetActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .focusHighlight()
+            .focusHighlight(onEnterKey = onClick)
             .clickable(onClick = onClick)
             .padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

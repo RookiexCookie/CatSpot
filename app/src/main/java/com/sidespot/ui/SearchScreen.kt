@@ -254,11 +254,15 @@ fun SearchScreen(
 
     // Track actions bottom sheet
     if (selectedTrackUri != null) {
+        val selectedTrack = state.tracks.find { it.uri == selectedTrackUri }
         TrackActionsSheet(
             trackUri = selectedTrackUri!!,
             playerViewModel = playerViewModel,
             playlists = libraryState.playlists,
             onDismiss = { selectedTrackUri = null },
+            onGoToAlbum = if (selectedTrack != null) {
+                { onAlbumClick(selectedTrack.albumUri) }
+            } else null,
         )
     }
 

@@ -16,6 +16,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -39,15 +40,25 @@ fun Modifier.focusHighlight(
         .then(
             if (onEnterKey != null) {
                 Modifier.onPreviewKeyEvent { event ->
-                    if (hasFocus && event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                        val kc = event.nativeKeyEvent.keyCode
-                        if (kc == KeyEvent.KEYCODE_ENTER ||
-                            (kc == KeyEvent.KEYCODE_DPAD_CENTER && event.nativeKeyEvent.isLongPress)
-                        ) {
+                    if (!hasFocus) return@onPreviewKeyEvent false
+                    val native = event.nativeKeyEvent
+                    val kc = native.keyCode
+                    when {
+                        native.action == KeyEvent.ACTION_DOWN && (
+                            kc == KeyEvent.KEYCODE_ENTER ||
+                            (kc == KeyEvent.KEYCODE_DPAD_CENTER && native.isLongPress)
+                        ) -> {
                             onEnterKey()
                             true
-                        } else false
-                    } else false
+                        }
+                        kc == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                            if (native.action == KeyEvent.ACTION_DOWN && native.repeatCount == 0) {
+                                onEnterKey()
+                            }
+                            true // consume all MEDIA_PLAY_PAUSE (repeats + ACTION_UP)
+                        }
+                        else -> false
+                    }
                 }
             } else Modifier
         )
@@ -70,13 +81,19 @@ fun Modifier.focusDarken(): Modifier = composed {
         }
 }
 
-/** Intercept DPAD_LEFT/RIGHT inside bottom sheet popups and dismiss. */
-fun Modifier.dismissOnDpad(onDismiss: () -> Unit): Modifier =
-    onPreviewKeyEvent { event ->
+/** Intercept DPAD_LEFT/RIGHT inside bottom sheet popups and dismiss.
+ *  Also consume MEDIA_PLAY_PAUSE so it doesn't leak to the Activity. */
+fun Modifier.dismissOnDpad(onDismiss: () -> Unit): Modifier = this
+    .onPreviewKeyEvent { event ->
         if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
             event.nativeKeyEvent.keyCode in DPAD_BACK_CODES
         ) {
             onDismiss()
             true
         } else false
+    }
+    .onKeyEvent { event ->
+        // Bubble-phase safety net: consume any MEDIA_PLAY_PAUSE not caught by
+        // a focused child (e.g. ACTION_UP arriving after the action row recomposes).
+        event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
     }

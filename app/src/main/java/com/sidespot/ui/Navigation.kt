@@ -302,6 +302,9 @@ fun SidespotNavigation(
                             playerViewModel = playerViewModel,
                             libraryViewModel = libraryViewModel,
                             onBack = { navController.popBackStack() },
+                            onGoToAlbum = { albumUri ->
+                                navController.navigate(Routes.trackList(albumUri))
+                            },
                         )
                     }
 
@@ -309,6 +312,9 @@ fun SidespotNavigation(
                         QueueScreen(
                             playerViewModel = playerViewModel,
                             libraryViewModel = libraryViewModel,
+                            onGoToAlbum = { albumUri ->
+                                navController.navigate(Routes.trackList(albumUri))
+                            },
                         )
                     }
 
