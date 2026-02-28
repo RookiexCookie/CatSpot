@@ -60,6 +60,16 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+
+        // Keep the window out of touch mode so sundial hardware key events
+        // reach dispatchKeyEvent immediately (Android consumes the first
+        // navigation-key press to exit touch mode, swallowing it).
+        window.decorView.apply {
+            post { requestFocusFromTouch() }
+            viewTreeObserver.addOnTouchModeChangeListener { inTouchMode ->
+                if (inTouchMode) post { requestFocusFromTouch() }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

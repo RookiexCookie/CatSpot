@@ -126,12 +126,20 @@ fun SidespotNavigation(
 
     // Sync current route and wire Sundial keypad callbacks to MainActivity
     DisposableEffect(mainActivity, navController) {
+        // Debounce: only prevent popping back within 400ms of navigating to Now Playing.
+        // This stops hardware button bounce (rapid double-press) from toggling back
+        // without blocking the initial "open Now Playing" press.
+        var nowPlayingOpenedAt = 0L
         if (mainActivity != null) {
             mainActivity.onNowPlayingToggleRequested = {
                 val onNowPlaying = navController.currentDestination?.route == Routes.NOW_PLAYING
                 if (onNowPlaying) {
-                    navController.popBackStack()
+                    val now = android.os.SystemClock.uptimeMillis()
+                    if (now - nowPlayingOpenedAt > 400) {
+                        navController.popBackStack()
+                    }
                 } else {
+                    nowPlayingOpenedAt = android.os.SystemClock.uptimeMillis()
                     navController.navigate(Routes.NOW_PLAYING) {
                         launchSingleTop = true
                     }
