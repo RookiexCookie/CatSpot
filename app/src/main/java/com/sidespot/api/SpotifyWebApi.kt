@@ -274,21 +274,24 @@ class SpotifyWebApi(private val authManager: AuthManager) {
                         val track = item.optJSONObject("track")
                         val album = track?.optJSONObject("album")
                         if (album != null) {
-                            val artists = album.optJSONArray("artists")
-                            val artistName = if (artists != null) {
-                                (0 until artists.length()).mapNotNull {
-                                    artists.optJSONObject(it)?.optString("name")
-                                }.joinToString(", ")
-                            } else ""
-                            val images = album.optJSONArray("images")
-                            val imageUrl = if (images != null && images.length() > 0)
-                                images.getJSONObject(0).getString("url") else null
-                            albumDetails[uri] = RecentAlbumInfo(
-                                uri = uri,
-                                name = album.optString("name", ""),
-                                artistName = artistName,
-                                imageUrl = imageUrl,
-                            )
+                            val trackAlbumUri = album.optString("uri", "")
+                            if (trackAlbumUri == uri) {
+                                val artists = album.optJSONArray("artists")
+                                val artistName = if (artists != null) {
+                                    (0 until artists.length()).mapNotNull {
+                                        artists.optJSONObject(it)?.optString("name")
+                                    }.joinToString(", ")
+                                } else ""
+                                val images = album.optJSONArray("images")
+                                val imageUrl = if (images != null && images.length() > 0)
+                                    images.getJSONObject(0).getString("url") else null
+                                albumDetails[uri] = RecentAlbumInfo(
+                                    uri = uri,
+                                    name = album.optString("name", ""),
+                                    artistName = artistName,
+                                    imageUrl = imageUrl,
+                                )
+                            }
                         }
                     }
                 }
@@ -301,6 +304,46 @@ class SpotifyWebApi(private val authManager: AuthManager) {
                 break
             } finally {
                 conn.disconnect()
+            }
+        }
+
+        // Batch-fetch metadata for album URIs whose track metadata didn't match
+        val missingAlbumUris = seenUris.filter { it.startsWith("spotify:album:") && it !in albumDetails }
+        if (missingAlbumUris.isNotEmpty()) {
+            for (chunk in missingAlbumUris.chunked(20)) {
+                val ids = chunk.map { it.removePrefix("spotify:album:") }.joinToString(",")
+                val conn = URL("$BASE_URL/albums?ids=$ids").openConnection() as HttpURLConnection
+                try {
+                    conn.setRequestProperty("Authorization", "Bearer $token")
+                    if (conn.responseCode in 200..299) {
+                        val body = conn.inputStream.bufferedReader().readText()
+                        val albums = JSONObject(body).optJSONArray("albums") ?: continue
+                        for (i in 0 until albums.length()) {
+                            val album = albums.optJSONObject(i) ?: continue
+                            val albumUri = album.optString("uri", "")
+                            if (albumUri.isEmpty() || albumUri in albumDetails) continue
+                            val artists = album.optJSONArray("artists")
+                            val artistName = if (artists != null) {
+                                (0 until artists.length()).mapNotNull {
+                                    artists.optJSONObject(it)?.optString("name")
+                                }.joinToString(", ")
+                            } else ""
+                            val images = album.optJSONArray("images")
+                            val imageUrl = if (images != null && images.length() > 0)
+                                images.getJSONObject(0).getString("url") else null
+                            albumDetails[albumUri] = RecentAlbumInfo(
+                                uri = albumUri,
+                                name = album.optString("name", ""),
+                                artistName = artistName,
+                                imageUrl = imageUrl,
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("SpotifyWebApi", "batch album fetch failed", e)
+                } finally {
+                    conn.disconnect()
+                }
             }
         }
 
