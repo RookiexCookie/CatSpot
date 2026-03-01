@@ -63,6 +63,7 @@ class PlayerViewModel : ViewModel() {
     private var mediaCommandReceiver: BroadcastReceiver? = null
     private var savedVolumeBeforeDuck: Int? = null
 
+    private var lastEmittedPositionMs = 0L
     private var consecutiveErrors = 0
     private var trackRetryCount = 0
     private var isReconnecting = false
@@ -564,7 +565,7 @@ class PlayerViewModel : ViewModel() {
                         handlePlayerEvent(event)
                     }
                 }
-                delay(150)
+                delay(200)
             }
         }
     }
@@ -576,7 +577,11 @@ class PlayerViewModel : ViewModel() {
                 isPlayerStopped = false
                 audioFocusManager?.isPlaying = true
                 val current = _uiState.value
-                _positionMs.value = event.positionMs.toLong()
+                val newPos = event.positionMs.toLong()
+                if (newPos / 1000 != lastEmittedPositionMs / 1000 || !current.isPlaying || current.isLoading) {
+                    _positionMs.value = newPos
+                    lastEmittedPositionMs = newPos
+                }
                 if (!current.isPlaying || current.isLoading) {
                     _uiState.update {
                         it.copy(isPlaying = true, isLoading = false)
@@ -588,6 +593,7 @@ class PlayerViewModel : ViewModel() {
                 audioFocusManager?.isPlaying = false
                 val wasPlaying = _uiState.value.isPlaying
                 _positionMs.value = event.positionMs.toLong()
+                lastEmittedPositionMs = 0L
                 if (wasPlaying) {
                     _uiState.update { it.copy(isPlaying = false) }
                     updatePlaybackService()
@@ -598,6 +604,7 @@ class PlayerViewModel : ViewModel() {
                 isPlayerStopped = true
                 stoppedPositionMs = _positionMs.value
                 _positionMs.value = 0L
+                lastEmittedPositionMs = 0L
                 _uiState.update { it.copy(isPlaying = false) }
                 // Don't call updatePlaybackService() here — it uses startForegroundService()
                 // which races with stopSelf() and causes ForegroundServiceDidNotStartInTimeException.
@@ -610,6 +617,7 @@ class PlayerViewModel : ViewModel() {
                 }
             }
             is PlayerEvent.EndOfTrack -> {
+                lastEmittedPositionMs = 0L
                 viewModelScope.launch(Dispatchers.IO) {
                     val nextUri = queueManager.next()
                     if (nextUri != null) {

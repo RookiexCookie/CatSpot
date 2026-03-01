@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.WindowCompat
@@ -348,7 +350,7 @@ private fun SeekBar(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Custom track + thumb
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(32.dp)
@@ -391,18 +393,15 @@ private fun SeekBar(
                     .height(3.dp)
                     .background(Color.White, RoundedCornerShape(1.5.dp)),
             )
-            // Thumb — thin vertical line at progress position
+            // Thumb — thin vertical line at progress position, offset-based
+            val thumbOffset = (maxWidth * fraction - 2.dp).coerceAtLeast(0.dp)
             Box(
-                modifier = Modifier.fillMaxWidth(fraction.coerceAtLeast(0.001f)),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(18.dp)
-                        .background(Color.White, RoundedCornerShape(2.dp)),
-                )
-            }
+                modifier = Modifier
+                    .padding(start = thumbOffset)
+                    .width(4.dp)
+                    .height(18.dp)
+                    .background(Color.White, RoundedCornerShape(2.dp)),
+            )
         }
 
         Spacer(modifier = Modifier.height(4.dp))
