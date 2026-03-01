@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -69,6 +71,7 @@ fun LibraryScreen(
     onLikedSongsClick: () -> Unit,
     onSavedAlbumsClick: () -> Unit = {},
     onPodcastsClick: () -> Unit = {},
+    onHistoryClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     viewModel: LibraryViewModel = viewModel(),
 ) {
@@ -77,6 +80,8 @@ fun LibraryScreen(
     var selectedPlaylistUri by remember { mutableStateOf<String?>(null) }
     var feedbackText by remember { mutableStateOf<String?>(null) }
     val likedSongsFocus = remember { FocusRequester() }
+    val historyFocus = remember { FocusRequester() }
+    val settingsFocus = remember { FocusRequester() }
     var likedSongsFocusReady by remember { mutableStateOf(false) }
 
     LaunchedEffect(likedSongsFocusReady) {
@@ -103,7 +108,24 @@ fun LibraryScreen(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onSettingsClick) {
+            IconButton(
+                onClick = onHistoryClick,
+                modifier = Modifier
+                    .focusRequester(historyFocus)
+                    .focusProperties { down = settingsFocus },
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = "History",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier
+                    .focusRequester(settingsFocus)
+                    .focusProperties { up = historyFocus },
+            ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Settings",

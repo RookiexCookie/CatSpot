@@ -13,6 +13,7 @@ data class QueueState(
     val contextIndex: Int = -1,
     val userQueue: List<String> = emptyList(),
     val contextName: String = "",
+    val contextUri: String = "",
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val originalContextTracks: List<String> = emptyList(),
@@ -33,7 +34,7 @@ class QueueManager {
     private val _state = MutableStateFlow(QueueState())
     val state: StateFlow<QueueState> = _state.asStateFlow()
 
-    fun loadContext(tracks: List<String>, startIndex: Int, contextName: String = "") {
+    fun loadContext(tracks: List<String>, startIndex: Int, contextName: String = "", contextUri: String = "") {
         val current = _state.value
         val actualTracks = if (current.shuffleEnabled) {
             val before = tracks.take(startIndex + 1)
@@ -47,6 +48,7 @@ class QueueManager {
             contextIndex = startIndex,
             userQueue = emptyList(),
             contextName = contextName,
+            contextUri = contextUri,
             shuffleEnabled = current.shuffleEnabled,
             repeatMode = current.repeatMode,
             originalContextTracks = if (current.shuffleEnabled) tracks else emptyList(),

@@ -12,6 +12,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 sealed class ApiResult {
     data object Success : ApiResult()
@@ -228,6 +231,8 @@ class SpotifyWebApi(private val authManager: AuthManager) {
         val orderedUris: List<String> = emptyList(),
         /** Metadata for recently played albums, keyed by URI. */
         val albumDetails: Map<String, RecentAlbumInfo> = emptyMap(),
+        /** Most recent played_at timestamp per context URI (epoch millis). */
+        val playedAtMs: Map<String, Long> = emptyMap(),
     )
 
     /**
@@ -240,6 +245,10 @@ class SpotifyWebApi(private val authManager: AuthManager) {
             ?: return@withContext RecentlyPlayedOrder()
         val seenUris = linkedSetOf<String>()
         val albumDetails = mutableMapOf<String, RecentAlbumInfo>()
+        val playedAtMap = mutableMapOf<String, Long>()
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
         var beforeCursor: String? = null
 
         for (page in 0 until 20) {
@@ -268,6 +277,15 @@ class SpotifyWebApi(private val authManager: AuthManager) {
 
                     if (type == "playlist" || type == "album") {
                         seenUris.add(uri)
+                        // Keep the first (most recent) timestamp per URI
+                        if (uri !in playedAtMap) {
+                            val playedAt = item.optString("played_at", "")
+                            if (playedAt.isNotEmpty()) {
+                                try {
+                                    playedAtMap[uri] = isoFormat.parse(playedAt)?.time ?: 0L
+                                } catch (_: Exception) {}
+                            }
+                        }
                     }
 
                     if (type == "album" && uri !in albumDetails) {
@@ -347,7 +365,7 @@ class SpotifyWebApi(private val authManager: AuthManager) {
             }
         }
 
-        RecentlyPlayedOrder(seenUris.toList(), albumDetails)
+        RecentlyPlayedOrder(seenUris.toList(), albumDetails, playedAtMap)
     }
 
     /**

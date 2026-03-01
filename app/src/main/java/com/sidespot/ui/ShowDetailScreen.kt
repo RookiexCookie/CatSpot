@@ -176,7 +176,8 @@ fun ShowDetailScreen(
                             playerViewModel.cacheEpisodeMetadata(state.episodes, showName)
                             val episodeUris = state.episodes.map { it.uri }
                             playerViewModel.loadTrackFromContext(
-                                episodeUris, index, showName,
+                                episodeUris, index, showName, contextUri = showUri,
+                                contextImageUrl = episode.imageUrl,
                             )
                         },
                         onLongClick = {

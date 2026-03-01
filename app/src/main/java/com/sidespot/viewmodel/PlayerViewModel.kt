@@ -16,6 +16,8 @@ import com.sidespot.bridge.EpisodeSummary
 import com.sidespot.bridge.NativeBridge
 import com.sidespot.bridge.PlayerEvent
 import com.sidespot.bridge.TrackInfo
+import com.sidespot.history.PlayHistoryEntry
+import com.sidespot.history.PlayHistoryManager
 import com.sidespot.service.PlaybackService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -70,6 +72,7 @@ class PlayerViewModel : ViewModel() {
     private var isPlayerStopped = false
     private var stoppedPositionMs: Long = 0L
     private var tokenProvider: (suspend () -> String?)? = null
+    private var historyManager: PlayHistoryManager? = null
 
     /**
      * Initialize platform services. Called from MainActivity after ViewModel creation.
@@ -78,6 +81,7 @@ class PlayerViewModel : ViewModel() {
     fun initPlatform(context: Context) {
         if (appContext != null) return
         appContext = context.applicationContext
+        historyManager = PlayHistoryManager(context.applicationContext)
 
         audioFocusManager = AudioFocusManager(context.applicationContext).apply {
             listener = object : AudioFocusManager.Listener {
@@ -213,10 +217,23 @@ class PlayerViewModel : ViewModel() {
         }
     }
 
-    fun loadTrackFromContext(tracks: List<String>, index: Int, contextName: String = "") {
-        queueManager.loadContext(tracks, index, contextName)
+    fun loadTrackFromContext(
+        tracks: List<String>,
+        index: Int,
+        contextName: String = "",
+        contextUri: String = "",
+        contextImageUrl: String? = null,
+        contextArtistName: String = "",
+    ) {
+        queueManager.loadContext(tracks, index, contextName, contextUri)
         val uri = tracks.getOrNull(index) ?: return
         loadTrack(uri)
+
+        // Record play history if we have a context URI
+        if (contextUri.isNotEmpty()) {
+            recordPlayHistory(contextUri, contextName, contextImageUrl, contextArtistName)
+        }
+
         // Preload metadata + art + audio for upcoming tracks
         viewModelScope.launch(Dispatchers.IO) {
             val alreadyCached = queueManager.state.value.trackMetadata
@@ -234,6 +251,35 @@ class PlayerViewModel : ViewModel() {
                 NativeBridge.playerPreload(nextUri)
             }
         }
+    }
+
+    private fun recordPlayHistory(
+        contextUri: String,
+        contextName: String,
+        imageUrl: String?,
+        artistName: String,
+    ) {
+        val manager = historyManager ?: return
+        val contextType = when {
+            contextUri.startsWith("spotify:album:") -> "album"
+            contextUri.startsWith("spotify:playlist:") -> "playlist"
+            contextUri.startsWith("spotify:show:") -> "show"
+            else -> return
+        }
+        // Use provided image/artist, fall back to cached track metadata
+        val qState = queueManager.state.value
+        val firstTrackUri = qState.contextTracks.getOrNull(qState.contextIndex)
+        val meta = firstTrackUri?.let { qState.trackMetadata[it] }
+
+        val entry = PlayHistoryEntry(
+            contextUri = contextUri,
+            contextName = contextName,
+            contextType = contextType,
+            artistName = artistName.ifEmpty { meta?.artistName ?: "" },
+            imageUrl = imageUrl ?: meta?.albumArtUrl,
+            playedAtMs = System.currentTimeMillis(),
+        )
+        manager.recordPlay(entry)
     }
 
     fun play() {

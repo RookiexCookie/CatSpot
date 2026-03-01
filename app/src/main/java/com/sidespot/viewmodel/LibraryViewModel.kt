@@ -2,9 +2,11 @@ package com.sidespot.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.sidespot.api.ApiResult
 import com.sidespot.api.SpotifyWebApi
 import com.sidespot.auth.AuthManager
+import com.sidespot.history.PlayHistoryManager
 import com.sidespot.bridge.AlbumSummary
 import com.sidespot.bridge.EpisodeSummary
 import com.sidespot.bridge.NativeBridge
@@ -41,6 +43,9 @@ data class LibraryUiState(
     val isLoadingNewEpisodes: Boolean = false,
     val newEpisodesDisplayLimit: Int = 5,
     val hasMoreNewEpisodes: Boolean = false,
+    val historyItems: List<LibraryItem> = emptyList(),
+    val historyDisplayLimit: Int = 50,
+    val hasMoreHistory: Boolean = false,
     val error: String? = null,
 )
 
@@ -49,6 +54,7 @@ class LibraryViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
     private var api: SpotifyWebApi? = null
+    private var historyManager: PlayHistoryManager? = null
 
     private var recentOrder: SpotifyWebApi.RecentlyPlayedOrder? = null
     private var lastFetchedAt: Long = 0L
@@ -58,12 +64,70 @@ class LibraryViewModel : ViewModel() {
         if (api == null) api = SpotifyWebApi(authManager)
     }
 
+    fun initHistory(context: Context) {
+        if (historyManager == null) historyManager = PlayHistoryManager(context.applicationContext)
+    }
+
+    private var cachedApiOrder: SpotifyWebApi.RecentlyPlayedOrder? = null
+
     private suspend fun refreshRecentOrder() {
+        // Only re-fetch API when cache expires, but always re-read local entries
         val now = System.currentTimeMillis()
-        if (now - lastFetchedAt < CACHE_TTL_MS) return
-        val order = api?.getRecentlyPlayedOrder() ?: return
-        recentOrder = order
-        lastFetchedAt = now
+        if (now - lastFetchedAt >= CACHE_TTL_MS) {
+            cachedApiOrder = api?.getRecentlyPlayedOrder()
+            lastFetchedAt = now
+        }
+        val apiOrder = cachedApiOrder ?: return
+
+        val localEntries = historyManager?.loadEntries() ?: emptyList()
+        if (localEntries.isEmpty()) {
+            recentOrder = apiOrder
+            return
+        }
+
+        // Merge: for each URI keep whichever source has the more recent timestamp
+        val mergedTimestamps = mutableMapOf<String, Long>()
+        val mergedAlbumDetails = apiOrder.albumDetails.toMutableMap()
+
+        // Seed with API timestamps
+        for ((uri, ts) in apiOrder.playedAtMs) {
+            mergedTimestamps[uri] = ts
+        }
+
+        // Merge local entries — keep the more recent timestamp per URI
+        for (entry in localEntries) {
+            val existing = mergedTimestamps[entry.contextUri]
+            if (existing == null || entry.playedAtMs > existing) {
+                mergedTimestamps[entry.contextUri] = entry.playedAtMs
+            }
+            // Fill album details from local history for items not in API response
+            if (entry.contextUri !in mergedAlbumDetails) {
+                mergedAlbumDetails[entry.contextUri] = SpotifyWebApi.RecentAlbumInfo(
+                    uri = entry.contextUri,
+                    name = entry.contextName,
+                    artistName = entry.artistName,
+                    imageUrl = entry.imageUrl,
+                )
+            }
+        }
+
+        // Also include any API URIs that had no timestamp (fallback: preserve API order)
+        for (uri in apiOrder.orderedUris) {
+            if (uri !in mergedTimestamps) {
+                mergedTimestamps[uri] = 0L
+            }
+        }
+
+        // Sort all URIs by timestamp descending
+        val sortedUris = mergedTimestamps.entries
+            .sortedByDescending { it.value }
+            .map { it.key }
+
+        recentOrder = SpotifyWebApi.RecentlyPlayedOrder(
+            orderedUris = sortedUris,
+            albumDetails = mergedAlbumDetails,
+            playedAtMs = mergedTimestamps,
+        )
     }
 
     private fun buildLibraryItems(playlists: List<PlaylistSummary>): List<LibraryItem> {
@@ -93,11 +157,75 @@ class LibraryViewModel : ViewModel() {
             }
         }
 
+        // Cap recent items to 15 for Library view
+        val capped = recentItems.take(15)
+
         // Append playlists not in recent order
         val remaining = playlists.filter { it.uri !in orderIndex }
             .map { LibraryItem.Playlist(it) }
 
-        return recentItems + remaining
+        return capped + remaining
+    }
+
+    private fun buildHistoryItems(): List<LibraryItem> {
+        val order = recentOrder ?: return emptyList()
+        val orderedUris = order.orderedUris
+        if (orderedUris.isEmpty()) return emptyList()
+
+        val playlists = _uiState.value.playlists.associateBy { it.uri }
+        val items = mutableListOf<LibraryItem>()
+        for (uri in orderedUris) {
+            val playlist = playlists[uri]
+            if (playlist != null) {
+                items.add(LibraryItem.Playlist(playlist))
+                continue
+            }
+            val album = order.albumDetails[uri]
+            if (album != null) {
+                items.add(LibraryItem.Album(
+                    uri = album.uri,
+                    name = album.name,
+                    artistName = album.artistName,
+                    imageUrl = album.imageUrl,
+                ))
+            }
+        }
+        return items
+    }
+
+    fun loadHistoryItems() {
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshRecentOrder()
+            val items = buildHistoryItems()
+            _uiState.update {
+                it.copy(
+                    historyItems = items,
+                    historyDisplayLimit = 50,
+                    hasMoreHistory = items.size > 50,
+                )
+            }
+        }
+    }
+
+    fun showMoreHistory() {
+        _uiState.update {
+            val newLimit = it.historyDisplayLimit + 50
+            it.copy(
+                historyDisplayLimit = newLimit,
+                hasMoreHistory = newLimit < it.historyItems.size,
+            )
+        }
+    }
+
+    fun refreshLibrary() {
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshRecentOrder()
+            val playlists = _uiState.value.playlists
+            if (playlists.isNotEmpty()) {
+                val items = buildLibraryItems(playlists)
+                _uiState.update { it.copy(libraryItems = items) }
+            }
+        }
     }
 
     fun loadPlaylists() {

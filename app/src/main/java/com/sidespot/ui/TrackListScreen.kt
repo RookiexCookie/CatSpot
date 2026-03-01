@@ -235,7 +235,9 @@ fun TrackListScreen(
                         Button(
                             onClick = {
                                 playerViewModel.loadTrackFromContext(
-                                    state.trackUris, 0, state.name,
+                                    state.trackUris, 0, state.name, contextUri = uri,
+                                    contextImageUrl = state.albumArtUrl,
+                                    contextArtistName = state.tracks.firstOrNull()?.artistName ?: "",
                                 )
                                 onPlayStarted()
                             },
@@ -261,7 +263,9 @@ fun TrackListScreen(
                             onClick = {
                                 val shuffledTracks = state.trackUris.shuffled()
                                 playerViewModel.loadTrackFromContext(
-                                    shuffledTracks, 0, state.name,
+                                    shuffledTracks, 0, state.name, contextUri = uri,
+                                    contextImageUrl = state.albumArtUrl,
+                                    contextArtistName = state.tracks.firstOrNull()?.artistName ?: "",
                                 )
                                 onPlayStarted()
                             },
@@ -458,7 +462,9 @@ fun TrackListScreen(
                     showAlbumArt = !state.isAlbum,
                     onClick = {
                         playerViewModel.loadTrackFromContext(
-                            state.trackUris, index, state.name,
+                            state.trackUris, index, state.name, contextUri = uri,
+                            contextImageUrl = state.albumArtUrl,
+                            contextArtistName = state.tracks.firstOrNull()?.artistName ?: "",
                         )
                     },
                     onLongClick = {

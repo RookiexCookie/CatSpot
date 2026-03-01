@@ -65,6 +65,7 @@ object Routes {
     const val SAVED_ALBUMS = "saved_albums"
     const val SAVED_SHOWS = "saved_shows"
     const val NEW_EPISODES = "new_episodes"
+    const val HISTORY = "history"
     const val SHOW_DETAIL = "show_detail/{uri}/{name}"
 
     fun trackList(uri: String): String = "track_list/${URLEncoder.encode(uri, "UTF-8")}"
@@ -168,6 +169,9 @@ fun SidespotNavigation(
     // Sync currentRoute to activity for context-sensitive key handling
     LaunchedEffect(currentRoute) {
         mainActivity?.currentRoute = currentRoute
+        if (currentRoute == Routes.LIBRARY) {
+            libraryViewModel.refreshLibrary()
+        }
     }
 
     // Auto-connect when authenticated but not yet connected (handles app relaunch
@@ -186,6 +190,12 @@ fun SidespotNavigation(
                 playerViewModel.connect(token) { authManager.getValidAccessToken() }
             }
         }
+    }
+
+    // Initialize history manager with context
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        libraryViewModel.initHistory(context)
     }
 
     // Navigate from login to library once connected, and load library data
@@ -283,6 +293,9 @@ fun SidespotNavigation(
                             },
                             onPodcastsClick = {
                                 navController.navigate(Routes.SAVED_SHOWS)
+                            },
+                            onHistoryClick = {
+                                navController.navigate(Routes.HISTORY)
                             },
                             onSettingsClick = {
                                 navController.navigate(Routes.SETTINGS)
@@ -387,6 +400,16 @@ fun SidespotNavigation(
                         NewEpisodesScreen(
                             libraryViewModel = libraryViewModel,
                             playerViewModel = playerViewModel,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+
+                    composable(Routes.HISTORY) {
+                        HistoryScreen(
+                            libraryViewModel = libraryViewModel,
+                            onItemClick = { uri ->
+                                navController.navigate(Routes.trackList(uri))
+                            },
                             onBack = { navController.popBackStack() },
                         )
                     }
