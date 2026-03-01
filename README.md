@@ -27,7 +27,9 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 - **Dynamic theming** -- album art colors tint the entire UI with smooth animated transitions
 - **Hardware volume keys** -- physical button integration
 - **Audio focus** -- pauses for calls, ducks for notifications, resumes automatically
-- **Settings** -- audio quality (96/160/320 kbps), volume normalization, gapless playback, autoplay
+- **Play history** -- dedicated History view combining local Sidespot listening history with your official Spotify history (note: playback through Sidespot does not appear in your official Spotify history)
+- **E-ink display mode** -- high-contrast monochrome UI optimized for e-ink screens
+- **Settings** -- audio quality (96/160/320 kbps), volume normalization, gapless playback, autoplay, e-ink mode
 
 ## Sidephone Only Features
 
