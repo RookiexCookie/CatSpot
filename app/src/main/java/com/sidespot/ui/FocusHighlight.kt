@@ -15,7 +15,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -93,7 +95,7 @@ fun Modifier.focusHighlight(
         .padding(horizontal = horizontalPadding, vertical = verticalPadding)
 }
 
-/** Darkens a button when focused — use on filled/primary-colored buttons. */
+/** Draws a white border on a filled button when focused via D-pad. */
 fun Modifier.focusDarken(): Modifier = composed {
     var hasFocus by remember { mutableStateOf(false) }
     val showHighlight by dpadActive
@@ -103,8 +105,37 @@ fun Modifier.focusDarken(): Modifier = composed {
         .drawWithContent {
             drawContent()
             if (hasFocus && showHighlight) {
-                drawRect(Color.Black.copy(alpha = 0.3f))
+                val hInset = 0.dp.toPx()
+                val vInset = 2.dp.toPx()
+                drawRoundRect(
+                    color = Color.White,
+                    topLeft = androidx.compose.ui.geometry.Offset(hInset, vInset),
+                    size = androidx.compose.ui.geometry.Size(
+                        size.width - hInset * 2,
+                        size.height - vInset * 2,
+                    ),
+                    style = Stroke(width = 3.dp.toPx()),
+                    cornerRadius = CornerRadius(20.dp.toPx()),
+                )
             }
+        }
+}
+
+/** Draws a filled circle behind an IconButton when focused via D-pad. */
+fun Modifier.focusCircle(
+    color: Color = Color.Unspecified,
+): Modifier = composed {
+    var hasFocus by remember { mutableStateOf(false) }
+    val showHighlight by dpadActive
+    val resolvedColor = if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color
+
+    this
+        .onFocusChanged { hasFocus = it.hasFocus }
+        .drawWithContent {
+            if (hasFocus && showHighlight) {
+                drawCircle(resolvedColor.copy(alpha = 0.5f))
+            }
+            drawContent()
         }
 }
 

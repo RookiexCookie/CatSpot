@@ -112,7 +112,8 @@ fun LibraryScreen(
                 onClick = onHistoryClick,
                 modifier = Modifier
                     .focusRequester(historyFocus)
-                    .focusProperties { down = settingsFocus },
+                    .focusProperties { down = settingsFocus }
+                    .focusCircle(),
             ) {
                 Icon(
                     imageVector = Icons.Default.History,
@@ -124,7 +125,8 @@ fun LibraryScreen(
                 onClick = onSettingsClick,
                 modifier = Modifier
                     .focusRequester(settingsFocus)
-                    .focusProperties { up = historyFocus },
+                    .focusProperties { up = historyFocus }
+                    .focusCircle(),
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
