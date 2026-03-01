@@ -1,5 +1,7 @@
 package com.sidespot.history
 
+import android.accounts.Account
+import android.accounts.AccountManager
 import android.content.Context
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -18,12 +20,14 @@ data class PlayHistoryEntry(
 class PlayHistoryManager(context: Context) {
 
     companion object {
-        private const val PREFS_NAME = "play_history"
-        private const val KEY_ENTRIES = "entries"
+        private const val ACCOUNT_TYPE = "com.sidespot.auth"
+        private const val ACCOUNT_NAME = "Spotify"
+        private const val KEY_ENTRIES = "play_history"
         private const val MAX_ENTRIES = 200
     }
 
-    private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val am = AccountManager.get(context.applicationContext)
+    private val account = Account(ACCOUNT_NAME, ACCOUNT_TYPE)
     private val json = Json { ignoreUnknownKeys = true }
 
     @Synchronized
@@ -35,12 +39,12 @@ class PlayHistoryManager(context: Context) {
             entries.subList(MAX_ENTRIES, entries.size).clear()
         }
         val serialized = json.encodeToString(entries)
-        prefs.edit().putString(KEY_ENTRIES, serialized).apply()
+        am.setUserData(account, KEY_ENTRIES, serialized)
     }
 
     @Synchronized
     fun loadEntries(): List<PlayHistoryEntry> {
-        val raw = prefs.getString(KEY_ENTRIES, null) ?: return emptyList()
+        val raw = am.getUserData(account, KEY_ENTRIES) ?: return emptyList()
         return try {
             json.decodeFromString<List<PlayHistoryEntry>>(raw)
         } catch (e: Exception) {

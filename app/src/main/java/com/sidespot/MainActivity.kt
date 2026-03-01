@@ -88,7 +88,10 @@ class MainActivity : ComponentActivity() {
             // Clear the intent data so we don't re-process on activity recreation
             intent.data = null
             // Skip if already authenticated (stale callback from process restart)
-            if (authManager.state.value.isAuthenticated) return
+            if (authManager.state.value.isAuthenticated) {
+                Log.d("SidespotAuth", "handleAuthCallback: skipping, already authenticated")
+                return
+            }
             lifecycleScope.launch {
                 authManager.exchangeCode(code)
             }

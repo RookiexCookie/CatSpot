@@ -1,5 +1,6 @@
 package com.sidespot.service
 
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -98,7 +99,11 @@ class PlaybackService : Service() {
             .apply { setReferenceCounted(false) }
 
         // Start with a minimal notification immediately
-        startForeground(NOTIFICATION_ID, buildNotification("sidespot", "", false))
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification("sidespot", "", false))
+        } catch (e: ForegroundServiceStartNotAllowedException) {
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -118,7 +123,12 @@ class PlaybackService : Service() {
                 updateMediaSession(title, artist, isPlaying, positionMs, durationMs)
 
                 // Always call startForeground to satisfy the startForegroundService() contract
-                startForeground(NOTIFICATION_ID, buildNotification(title, artist, isPlaying))
+                try {
+                    startForeground(NOTIFICATION_ID, buildNotification(title, artist, isPlaying))
+                } catch (e: ForegroundServiceStartNotAllowedException) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
 
                 // Manage wake lock and pause timeout
                 if (isPlaying) {
@@ -144,7 +154,9 @@ class PlaybackService : Service() {
             ACTION_STOP_SERVICE -> {
                 releaseWakeLock()
                 // Satisfy any pending startForegroundService() contract before stopping
-                startForeground(NOTIFICATION_ID, buildNotification("sidespot", "", false))
+                try {
+                    startForeground(NOTIFICATION_ID, buildNotification("sidespot", "", false))
+                } catch (_: ForegroundServiceStartNotAllowedException) { }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }

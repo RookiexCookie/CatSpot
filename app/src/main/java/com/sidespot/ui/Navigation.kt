@@ -3,6 +3,7 @@ package com.sidespot.ui
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -102,6 +103,7 @@ fun SidespotNavigation(
 
     // Start at library if authenticated (tokens persist on disk); login only if signed out
     val startDestination = if (authState.isAuthenticated) Routes.LIBRARY else Routes.LOGIN
+    Log.d("SidespotAuth", "startDestination=$startDestination authState=$authState")
 
     // Hide bottom nav + mini-player on full-screen Now Playing and Login
     val hideChrome = currentRoute == Routes.NOW_PLAYING || currentRoute == Routes.LOGIN
@@ -180,12 +182,15 @@ fun SidespotNavigation(
     // isAuthenticated stays true across back-to-back sign-ins.  Skipping while
     // isLoading avoids racing with an in-flight exchangeCode().
     LaunchedEffect(authState.isAuthenticated, authState.version, authState.isLoading, state.isConnected) {
+        Log.d("SidespotAuth", "auto-connect: auth=${authState.isAuthenticated} version=${authState.version} loading=${authState.isLoading} connected=${state.isConnected}")
         if (authState.isAuthenticated && !state.isConnected && !authState.isLoading) {
             if (authManager.needsReauth()) {
+                Log.d("SidespotAuth", "auto-connect: needsReauth=true, logging out")
                 authManager.logout()
                 return@LaunchedEffect
             }
             val token = authManager.getValidAccessToken()
+            Log.d("SidespotAuth", "auto-connect: token=${if (token != null) "present" else "null"}")
             if (token != null) {
                 playerViewModel.connect(token) { authManager.getValidAccessToken() }
             }
@@ -215,6 +220,7 @@ fun SidespotNavigation(
     // If auth is lost (e.g. token refresh failed), navigate back to login
     LaunchedEffect(authState.isAuthenticated) {
         if (!authState.isAuthenticated && currentRoute != Routes.LOGIN) {
+            Log.d("SidespotAuth", "auth-lost: navigating to login, currentRoute=$currentRoute")
             navController.navigate(Routes.LOGIN) {
                 popUpTo(0) { inclusive = true }
             }
