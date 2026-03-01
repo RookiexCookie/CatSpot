@@ -50,6 +50,12 @@ sealed class PlayerEvent {
         val message: String,
     ) : PlayerEvent()
 
+    @Serializable
+    @SerialName("timeout")
+    data class Timeout(
+        val message: String,
+    ) : PlayerEvent()
+
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
 

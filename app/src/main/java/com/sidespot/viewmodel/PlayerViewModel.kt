@@ -43,6 +43,10 @@ data class PlayerUiState(
 
 class PlayerViewModel : ViewModel() {
 
+    companion object {
+        private const val MAX_TRACK_RETRIES = 3
+    }
+
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
@@ -60,6 +64,7 @@ class PlayerViewModel : ViewModel() {
     private var savedVolumeBeforeDuck: Int? = null
 
     private var consecutiveErrors = 0
+    private var trackRetryCount = 0
     private var isReconnecting = false
     private var isPlayerStopped = false
     private var stoppedPositionMs: Long = 0L
@@ -165,6 +170,7 @@ class PlayerViewModel : ViewModel() {
     }
 
     fun loadTrack(uri: String) {
+        trackRetryCount = 0
         isPlayerStopped = false
         viewModelScope.launch(Dispatchers.IO) {
             val cached = queueManager.state.value.trackMetadata[uri]
@@ -493,6 +499,19 @@ class PlayerViewModel : ViewModel() {
         }
     }
 
+    private fun retryCurrentTrack(uri: String) {
+        trackRetryCount++
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(500L * trackRetryCount)
+            val error = NativeBridge.playerLoad(uri, true)
+            if (error != null) {
+                trackRetryCount = 0
+                val nextUri = queueManager.next()
+                if (nextUri != null) loadTrack(nextUri)
+            }
+        }
+    }
+
     fun onVolumeChanged(volume: Int) {
         _uiState.update { it.copy(volume = volume, showVolumeOverlay = true) }
         viewModelScope.launch {
@@ -604,14 +623,27 @@ class PlayerViewModel : ViewModel() {
                     }
                 }
             }
+            is PlayerEvent.Timeout -> {
+                _uiState.update {
+                    it.copy(
+                        isPlaying = false,
+                        isLoading = false,
+                        error = "Connection timed out. Tap play to retry.",
+                    )
+                }
+            }
             is PlayerEvent.Error -> {
                 if (isReconnecting) return
                 consecutiveErrors++
                 if (consecutiveErrors < 2) {
-                    // Single error — likely a bad track, skip to next
-                    val nextUri = queueManager.next()
-                    if (nextUri != null) {
-                        loadTrack(nextUri)
+                    // Single error — retry the same track before skipping
+                    val currentUri = _uiState.value.trackUri
+                    if (currentUri.isNotEmpty() && trackRetryCount < MAX_TRACK_RETRIES) {
+                        retryCurrentTrack(currentUri)
+                    } else {
+                        trackRetryCount = 0
+                        val nextUri = queueManager.next()
+                        if (nextUri != null) loadTrack(nextUri)
                     }
                 } else {
                     // Multiple consecutive errors — session likely dead, reconnect
