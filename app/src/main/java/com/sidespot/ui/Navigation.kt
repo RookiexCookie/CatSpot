@@ -100,8 +100,8 @@ fun SidespotNavigation(
     val libraryViewModel: LibraryViewModel = viewModel()
     val searchViewModel: SearchViewModel = viewModel()
 
-    // Start at login unless already connected (handles both fresh launch and relaunch)
-    val startDestination = if (state.isConnected) Routes.LIBRARY else Routes.LOGIN
+    // Start at library if authenticated (tokens persist on disk); login only if signed out
+    val startDestination = if (authState.isAuthenticated) Routes.LIBRARY else Routes.LOGIN
 
     // Hide bottom nav + mini-player on full-screen Now Playing and Login
     val hideChrome = currentRoute == Routes.NOW_PLAYING || currentRoute == Routes.LOGIN
@@ -182,7 +182,6 @@ fun SidespotNavigation(
     LaunchedEffect(authState.isAuthenticated, authState.version, authState.isLoading, state.isConnected) {
         if (authState.isAuthenticated && !state.isConnected && !authState.isLoading) {
             if (authManager.needsReauth()) {
-                android.util.Log.i("Navigation", "OAuth scopes changed — logging out to re-authorize")
                 authManager.logout()
                 return@LaunchedEffect
             }
@@ -209,6 +208,15 @@ fun SidespotNavigation(
                 navController.navigate(Routes.LIBRARY) {
                     popUpTo(Routes.LOGIN) { inclusive = true }
                 }
+            }
+        }
+    }
+
+    // If auth is lost (e.g. token refresh failed), navigate back to login
+    LaunchedEffect(authState.isAuthenticated) {
+        if (!authState.isAuthenticated && currentRoute != Routes.LOGIN) {
+            navController.navigate(Routes.LOGIN) {
+                popUpTo(0) { inclusive = true }
             }
         }
     }

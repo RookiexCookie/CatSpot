@@ -85,6 +85,10 @@ class MainActivity : ComponentActivity() {
         val uri = intent?.data ?: return
         if (uri.scheme == "sidespot" && uri.host == "callback") {
             val code = uri.getQueryParameter("code") ?: return
+            // Clear the intent data so we don't re-process on activity recreation
+            intent.data = null
+            // Skip if already authenticated (stale callback from process restart)
+            if (authManager.state.value.isAuthenticated) return
             lifecycleScope.launch {
                 authManager.exchangeCode(code)
             }
