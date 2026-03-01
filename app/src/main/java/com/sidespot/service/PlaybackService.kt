@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlaybackService : Service() {
 
@@ -129,7 +130,7 @@ class PlaybackService : Service() {
                 if (artUrl != null && artUrl != currentArtUrl) {
                     currentArtUrl = artUrl
                     scope.launch {
-                        val bitmap = loadBitmap(artUrl)
+                        val bitmap = withContext(Dispatchers.IO) { loadBitmap(artUrl) }
                         currentArtBitmap = bitmap
                         updateMediaSessionArt(bitmap)
                         updateNotification(title, artist, isPlaying)
@@ -319,6 +320,7 @@ class PlaybackService : Service() {
             val loader = this@PlaybackService.imageLoader
             val request = ImageRequest.Builder(this)
                 .data(url)
+                .size(128)
                 .allowHardware(false)
                 .build()
             val result = loader.execute(request)

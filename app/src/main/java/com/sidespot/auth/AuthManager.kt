@@ -183,6 +183,8 @@ class AuthManager(context: Context) {
             try {
                 conn.requestMethod = "POST"
                 conn.doOutput = true
+                conn.connectTimeout = 10_000
+                conn.readTimeout = 15_000
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
 
                 val body = params.entries.joinToString("&") { (k, v) ->

@@ -52,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -111,19 +110,31 @@ fun NowPlayingScreen(
         }
     }
 
-    // Load album art bitmap into state — keeps previous art until new one loads
-    var artBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    // Load album art bitmaps — blurred for background, sharp for full-screen view
+    var blurredBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var sharpBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     val context = LocalContext.current
     LaunchedEffect(state.albumArtUrl) {
         val url = state.albumArtUrl ?: return@LaunchedEffect
-        val result = context.imageLoader.execute(
+        val sharpResult = context.imageLoader.execute(
             ImageRequest.Builder(context)
                 .data(url)
                 .size(720)
                 .allowHardware(false)
                 .build(),
         )
-        result.drawable?.toBitmap()?.let { artBitmap = it }
+        sharpResult.drawable?.toBitmap()?.let { sharpBitmap = it }
+        if (!einkMode) {
+            val blurredResult = context.imageLoader.execute(
+                ImageRequest.Builder(context)
+                    .data(url)
+                    .size(720)
+                    .allowHardware(false)
+                    .transformations(listOf(BitmapBlurTransformation()))
+                    .build(),
+            )
+            blurredResult.drawable?.toBitmap()?.let { blurredBitmap = it }
+        }
     }
 
     // Resolve colors: use theme colors in e-ink mode, hardcoded white in normal mode
@@ -146,9 +157,9 @@ fun NowPlayingScreen(
             ) { if (!einkMode) showControls = !showControls },
     ) {
         // Album art background
-        artBitmap?.let { bitmap ->
-            val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
-            if (einkMode) {
+        if (einkMode) {
+            sharpBitmap?.let { bitmap ->
+                val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
                 // E-ink: sharp art, no blur
                 Image(
                     bitmap = imageBitmap,
@@ -162,19 +173,23 @@ fun NowPlayingScreen(
                         .fillMaxSize()
                         .background(Color.White.copy(alpha = 0.65f)),
                 )
-            } else {
+            }
+        } else {
+            blurredBitmap?.let { bitmap ->
+                val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
                 key(bitmap) {
                     Image(
                         bitmap = imageBitmap,
                         contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .blur(6.dp),
+                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                     )
                 }
+            }
 
-                // Album art sharp (visible when controls hidden)
+            // Album art sharp (visible when controls hidden)
+            sharpBitmap?.let { bitmap ->
+                val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
                 AnimatedVisibility(
                     visible = !showControls,
                     enter = fadeIn(),

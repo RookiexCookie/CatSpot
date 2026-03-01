@@ -27,6 +27,13 @@ class SpotifyWebApi(private val authManager: AuthManager) {
 
     companion object {
         private const val BASE_URL = "https://api.spotify.com/v1"
+
+        private fun HttpURLConnection.applyDefaults(token: String): HttpURLConnection {
+            connectTimeout = 10_000
+            readTimeout = 15_000
+            setRequestProperty("Authorization", "Bearer $token")
+            return this
+        }
     }
 
     /**
@@ -36,9 +43,8 @@ class SpotifyWebApi(private val authManager: AuthManager) {
     suspend fun searchShows(query: String, offset: Int = 0): SearchPage<ShowSummary> = withContext(Dispatchers.IO) {
         val token = authManager.getValidAccessToken() ?: return@withContext SearchPage(emptyList(), 0)
         val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-        val conn = URL("$BASE_URL/search?type=show&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection
+        val conn = (URL("$BASE_URL/search?type=show&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection).applyDefaults(token)
         try {
-            conn.setRequestProperty("Authorization", "Bearer $token")
             if (conn.responseCode !in 200..299) {
                 val err = conn.errorStream?.bufferedReader()?.readText()
                 android.util.Log.w("SpotifyWebApi", "searchShows HTTP ${conn.responseCode}: $err")
@@ -77,9 +83,8 @@ class SpotifyWebApi(private val authManager: AuthManager) {
     suspend fun searchTracks(query: String, offset: Int = 0): SearchPage<TrackInfo> = withContext(Dispatchers.IO) {
         val token = authManager.getValidAccessToken() ?: return@withContext SearchPage(emptyList(), 0)
         val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-        val conn = URL("$BASE_URL/search?type=track&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection
+        val conn = (URL("$BASE_URL/search?type=track&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection).applyDefaults(token)
         try {
-            conn.setRequestProperty("Authorization", "Bearer $token")
             if (conn.responseCode !in 200..299) {
                 val err = conn.errorStream?.bufferedReader()?.readText()
                 android.util.Log.w("SpotifyWebApi", "searchTracks HTTP ${conn.responseCode}: $err")
@@ -145,9 +150,8 @@ class SpotifyWebApi(private val authManager: AuthManager) {
     suspend fun searchAlbums(query: String, offset: Int = 0): SearchPage<AlbumResult> = withContext(Dispatchers.IO) {
         val token = authManager.getValidAccessToken() ?: return@withContext SearchPage(emptyList(), 0)
         val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-        val conn = URL("$BASE_URL/search?type=album&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection
+        val conn = (URL("$BASE_URL/search?type=album&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection).applyDefaults(token)
         try {
-            conn.setRequestProperty("Authorization", "Bearer $token")
             if (conn.responseCode !in 200..299) {
                 val err = conn.errorStream?.bufferedReader()?.readText()
                 android.util.Log.w("SpotifyWebApi", "searchAlbums HTTP ${conn.responseCode}: $err")
@@ -199,11 +203,10 @@ class SpotifyWebApi(private val authManager: AuthManager) {
         val token = authManager.getValidAccessToken()
             ?: return@withContext ApiResult.Error("No access token")
         val playlistId = playlistUri.removePrefix("spotify:playlist:")
-        val conn = URL("$BASE_URL/playlists/$playlistId/followers")
-            .openConnection() as HttpURLConnection
+        val conn = (URL("$BASE_URL/playlists/$playlistId/followers")
+            .openConnection() as HttpURLConnection).applyDefaults(token)
         try {
             conn.requestMethod = "DELETE"
-            conn.setRequestProperty("Authorization", "Bearer $token")
             if (conn.responseCode in 200..299) {
                 ApiResult.Success
             } else {
@@ -256,9 +259,8 @@ class SpotifyWebApi(private val authManager: AuthManager) {
                 append("$BASE_URL/me/player/recently-played?limit=50")
                 if (beforeCursor != null) append("&before=$beforeCursor")
             }
-            val conn = URL(urlStr).openConnection() as HttpURLConnection
+            val conn = (URL(urlStr).openConnection() as HttpURLConnection).applyDefaults(token)
             try {
-                conn.setRequestProperty("Authorization", "Bearer $token")
                 if (conn.responseCode !in 200..299) {
                     val err = conn.errorStream?.bufferedReader()?.readText()
                     android.util.Log.w("SpotifyWebApi", "getRecentlyPlayed HTTP ${conn.responseCode}: $err")
@@ -330,9 +332,8 @@ class SpotifyWebApi(private val authManager: AuthManager) {
         if (missingAlbumUris.isNotEmpty()) {
             for (chunk in missingAlbumUris.chunked(20)) {
                 val ids = chunk.map { it.removePrefix("spotify:album:") }.joinToString(",")
-                val conn = URL("$BASE_URL/albums?ids=$ids").openConnection() as HttpURLConnection
+                val conn = (URL("$BASE_URL/albums?ids=$ids").openConnection() as HttpURLConnection).applyDefaults(token)
                 try {
-                    conn.setRequestProperty("Authorization", "Bearer $token")
                     if (conn.responseCode in 200..299) {
                         val body = conn.inputStream.bufferedReader().readText()
                         val albums = JSONObject(body).optJSONArray("albums") ?: continue
@@ -375,9 +376,8 @@ class SpotifyWebApi(private val authManager: AuthManager) {
     suspend fun searchPlaylists(query: String, offset: Int = 0): SearchPage<PlaylistResult> = withContext(Dispatchers.IO) {
         val token = authManager.getValidAccessToken() ?: return@withContext SearchPage(emptyList(), 0)
         val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-        val conn = URL("$BASE_URL/search?type=playlist&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection
+        val conn = (URL("$BASE_URL/search?type=playlist&q=$encoded&limit=10&offset=$offset").openConnection() as HttpURLConnection).applyDefaults(token)
         try {
-            conn.setRequestProperty("Authorization", "Bearer $token")
             if (conn.responseCode !in 200..299) {
                 val err = conn.errorStream?.bufferedReader()?.readText()
                 android.util.Log.w("SpotifyWebApi", "searchPlaylists HTTP ${conn.responseCode}: $err")
@@ -429,10 +429,9 @@ class SpotifyWebApi(private val authManager: AuthManager) {
 
         for (show in shows) {
             val showId = show.uri.removePrefix("spotify:show:")
-            val conn = URL("$BASE_URL/shows/$showId/episodes?limit=10")
-                .openConnection() as HttpURLConnection
+            val conn = (URL("$BASE_URL/shows/$showId/episodes?limit=10")
+                .openConnection() as HttpURLConnection).applyDefaults(token)
             try {
-                conn.setRequestProperty("Authorization", "Bearer $token")
                 if (conn.responseCode !in 200..299) {
                     val err = conn.errorStream?.bufferedReader()?.readText()
                     android.util.Log.w("SpotifyWebApi", "getShowEpisodes HTTP ${conn.responseCode}: $err")
