@@ -106,6 +106,7 @@ fun SidespotNavigation(
     // Hide bottom nav + mini-player on full-screen Now Playing and Login
     val hideChrome = currentRoute == Routes.NOW_PLAYING || currentRoute == Routes.LOGIN
 
+    val settingsState by settingsManager.state.collectAsState()
     val albumColors = rememberAlbumColors(state.albumArtUrl)
 
     // Hide status bar on Now Playing screen
@@ -212,7 +213,7 @@ fun SidespotNavigation(
         }
     }
 
-    DynamicSidespotTheme(albumColors = albumColors) {
+    DynamicSidespotTheme(albumColors = albumColors, einkMode = settingsState.einkMode) {
         Scaffold(
             containerColor = if (isNowPlaying) Color.Transparent
                 else MaterialTheme.colorScheme.background,

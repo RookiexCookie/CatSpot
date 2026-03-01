@@ -18,6 +18,7 @@ data class SettingsState(
     val gapless: Boolean = true,
     val autoplay: Boolean = false,
     val audioQuality: AudioQuality = AudioQuality.HIGH,
+    val einkMode: Boolean = false,
 )
 
 class SettingsManager(context: Context) {
@@ -28,6 +29,7 @@ class SettingsManager(context: Context) {
         private const val KEY_AUTOPLAY = "autoplay"
         private const val KEY_GAPLESS = "gapless"
         private const val KEY_AUDIO_QUALITY = "audio_quality"
+        private const val KEY_EINK_MODE = "eink_mode"
     }
 
     private val prefs: SharedPreferences =
@@ -48,7 +50,14 @@ class SettingsManager(context: Context) {
             gapless = prefs.getBoolean(KEY_GAPLESS, true),
             autoplay = prefs.getBoolean(KEY_AUTOPLAY, false),
             audioQuality = quality,
+            einkMode = prefs.getBoolean(KEY_EINK_MODE, false),
         )
+    }
+
+    /** Set e-ink mode and persist immediately. No player recreation needed. */
+    fun setEinkMode(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_EINK_MODE, enabled).apply()
+        _state.value = _state.value.copy(einkMode = enabled)
     }
 
     /** Set autoplay and persist immediately. No player recreation needed. */

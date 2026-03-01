@@ -80,6 +80,8 @@ fun NowPlayingScreen(
     val positionMs by viewModel.positionMs.collectAsState()
     val queueState by viewModel.queueManager.state.collectAsState()
 
+    val einkMode = LocalEinkMode.current
+
     // Album art background with controls overlaid
     var showControls by remember { mutableStateOf(true) }
 
@@ -124,212 +126,309 @@ fun NowPlayingScreen(
         result.drawable?.toBitmap()?.let { artBitmap = it }
     }
 
+    // Resolve colors: use theme colors in e-ink mode, hardcoded white in normal mode
+    val controlColor = if (einkMode) MaterialTheme.colorScheme.onBackground else Color.White
+    val controlColorDim = if (einkMode) MaterialTheme.colorScheme.onSurfaceVariant
+        else Color.White.copy(alpha = 0.7f)
+    val controlColorFaint = if (einkMode) MaterialTheme.colorScheme.onSurfaceVariant
+        else Color.White.copy(alpha = 0.5f)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .then(
+                if (einkMode) Modifier.background(MaterialTheme.colorScheme.background)
+                else Modifier
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-            ) { showControls = !showControls },
+            ) { if (!einkMode) showControls = !showControls },
     ) {
-        // Album art background (blurred) — key() forces graphics layer recreation on bitmap change
+        // Album art background
         artBitmap?.let { bitmap ->
             val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
-            key(bitmap) {
-                Image(
-                    bitmap = imageBitmap,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .blur(6.dp),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-
-            // Album art sharp (visible when controls hidden)
-            AnimatedVisibility(
-                visible = !showControls,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
+            if (einkMode) {
+                // E-ink: sharp art, no blur
                 Image(
                     bitmap = imageBitmap,
                     contentDescription = "Album art",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
-            }
-        }
+                // Light scrim so black controls stay readable over art
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = 0.65f)),
+                )
+            } else {
+                key(bitmap) {
+                    Image(
+                        bitmap = imageBitmap,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(6.dp),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
 
-        // Dark scrim gradient (only with controls)
-        AnimatedVisibility(
-            visible = showControls,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.4f),
-                                Color.Black.copy(alpha = 0.7f),
-                            ),
-                        ),
-                    ),
-            )
-        }
-
-        // Controls overlay
-        AnimatedVisibility(
-            visible = showControls,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                // Back button + context name
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                // Album art sharp (visible when controls hidden)
+                AnimatedVisibility(
+                    visible = !showControls,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(24.dp),
-                            tint = Color.White,
-                        )
-                    }
-                    if (queueState.contextName.isNotEmpty()) {
-                        Text(
-                            text = queueState.contextName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.6f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center,
-                        )
-                        // Invisible spacer to balance the icon and center the text
-                        Spacer(modifier = Modifier.size(40.dp))
-                    }
-                }
-
-                // Error display
-                if (state.error != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = state.error!!,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
+                    Image(
+                        bitmap = imageBitmap,
+                        contentDescription = "Album art",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
                     )
                 }
-
-                // Push everything else to the bottom
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Track info
-                if (state.albumName.isNotEmpty()) {
-                    Text(
-                        text = state.albumName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.5f),
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                }
-
-                Text(
-                    text = state.trackTitle.ifEmpty { "No track loaded" },
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = state.artistName.ifEmpty { "---" },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Seek slider
-                SeekBar(
-                    positionMs = positionMs,
-                    durationMs = state.durationMs,
-                    onSeek = { viewModel.seek(it) },
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Transport controls
-                TransportControls(
-                    isPlaying = state.isPlaying,
-                    isLoading = state.isLoading,
-                    shuffleEnabled = queueState.shuffleEnabled,
-                    repeatMode = queueState.repeatMode,
-                    onPlay = viewModel::play,
-                    onPause = viewModel::pause,
-                    onPrevious = viewModel::previous,
-                    onNext = viewModel::next,
-                    onToggleShuffle = viewModel::toggleShuffle,
-                    onCycleRepeat = viewModel::cycleRepeatMode,
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
 
-        // Volume overlay — vertical bar on right edge
-        AnimatedVisibility(
-            visible = state.showVolumeOverlay,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 12.dp),
-        ) {
-            val fraction = state.volume / 65535f
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(120.dp)
-                    .background(
-                        Color.White.copy(alpha = 0.3f),
-                        RoundedCornerShape(2.dp),
-                    ),
-                contentAlignment = Alignment.BottomCenter,
+        if (!einkMode) {
+            // Dark scrim gradient (only with controls)
+            AnimatedVisibility(
+                visible = showControls,
+                enter = fadeIn(),
+                exit = fadeOut(),
             ) {
                 Box(
                     modifier = Modifier
-                        .width(4.dp)
-                        .fillMaxHeight(fraction)
-                        .background(Color.White, RoundedCornerShape(2.dp)),
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.4f),
+                                    Color.Black.copy(alpha = 0.7f),
+                                ),
+                            ),
+                        ),
                 )
             }
         }
+
+        // Controls overlay — always visible in e-ink mode, animated otherwise
+        val controlsVisible = einkMode || showControls
+        if (einkMode && controlsVisible) {
+            NowPlayingControls(
+                state = state,
+                queueState = queueState,
+                positionMs = positionMs,
+                viewModel = viewModel,
+                onBack = onBack,
+                controlColor = controlColor,
+                controlColorDim = controlColorDim,
+                controlColorFaint = controlColorFaint,
+                einkMode = true,
+            )
+        } else {
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                NowPlayingControls(
+                    state = state,
+                    queueState = queueState,
+                    positionMs = positionMs,
+                    viewModel = viewModel,
+                    onBack = onBack,
+                    controlColor = controlColor,
+                    controlColorDim = controlColorDim,
+                    controlColorFaint = controlColorFaint,
+                    einkMode = false,
+                )
+            }
+        }
+
+        // Volume overlay — instant in e-ink mode, animated otherwise
+        if (einkMode) {
+            if (state.showVolumeOverlay) {
+                VolumeBar(
+                    volume = state.volume,
+                    controlColor = controlColor,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 12.dp),
+                )
+            }
+        } else {
+            AnimatedVisibility(
+                visible = state.showVolumeOverlay,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp),
+            ) {
+                VolumeBar(
+                    volume = state.volume,
+                    controlColor = controlColor,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NowPlayingControls(
+    state: com.sidespot.viewmodel.PlayerUiState,
+    queueState: com.sidespot.viewmodel.QueueState,
+    positionMs: Long,
+    viewModel: PlayerViewModel,
+    onBack: () -> Unit,
+    controlColor: Color,
+    controlColorDim: Color,
+    controlColorFaint: Color,
+    einkMode: Boolean,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        // Back button + context name
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    modifier = Modifier.size(24.dp),
+                    tint = controlColor,
+                )
+            }
+            if (queueState.contextName.isNotEmpty()) {
+                Text(
+                    text = queueState.contextName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = controlColorFaint,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                )
+                // Invisible spacer to balance the icon and center the text
+                Spacer(modifier = Modifier.size(40.dp))
+            }
+        }
+
+        // Error display
+        if (state.error != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = state.error!!,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        // Push everything else to the bottom
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Track info
+        if (state.albumName.isNotEmpty()) {
+            Text(
+                text = state.albumName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = controlColorFaint,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+        }
+
+        Text(
+            text = state.trackTitle.ifEmpty { "No track loaded" },
+            style = MaterialTheme.typography.titleLarge,
+            color = controlColor,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = state.artistName.ifEmpty { "---" },
+            style = MaterialTheme.typography.bodyLarge,
+            color = controlColorDim,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Seek slider
+        SeekBar(
+            positionMs = positionMs,
+            durationMs = state.durationMs,
+            onSeek = { viewModel.seek(it) },
+            controlColor = controlColor,
+            controlColorDim = controlColorFaint,
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Transport controls
+        TransportControls(
+            isPlaying = state.isPlaying,
+            isLoading = state.isLoading,
+            shuffleEnabled = queueState.shuffleEnabled,
+            repeatMode = queueState.repeatMode,
+            onPlay = viewModel::play,
+            onPause = viewModel::pause,
+            onPrevious = viewModel::previous,
+            onNext = viewModel::next,
+            onToggleShuffle = viewModel::toggleShuffle,
+            onCycleRepeat = viewModel::cycleRepeatMode,
+            controlColor = controlColor,
+            einkMode = einkMode,
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun VolumeBar(
+    volume: Int,
+    controlColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val fraction = volume / 65535f
+    Box(
+        modifier = modifier
+            .width(4.dp)
+            .height(120.dp)
+            .background(
+                controlColor.copy(alpha = 0.3f),
+                RoundedCornerShape(2.dp),
+            ),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .fillMaxHeight(fraction)
+                .background(controlColor, RoundedCornerShape(2.dp)),
+        )
     }
 }
 
@@ -338,6 +437,8 @@ private fun SeekBar(
     positionMs: Long,
     durationMs: Long,
     onSeek: (Int) -> Unit,
+    controlColor: Color = Color.White,
+    controlColorDim: Color = Color.White.copy(alpha = 0.6f),
 ) {
     var isSeeking by remember { mutableStateOf(false) }
     var seekFraction by remember { mutableFloatStateOf(0f) }
@@ -384,14 +485,14 @@ private fun SeekBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp)
-                    .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(1.5.dp)),
+                    .background(controlColor.copy(alpha = 0.3f), RoundedCornerShape(1.5.dp)),
             )
             // Track progress
             Box(
                 modifier = Modifier
                     .fillMaxWidth(fraction)
                     .height(3.dp)
-                    .background(Color.White, RoundedCornerShape(1.5.dp)),
+                    .background(controlColor, RoundedCornerShape(1.5.dp)),
             )
             // Thumb — thin vertical line at progress position, offset-based
             val thumbOffset = (maxWidth * fraction - 2.dp).coerceAtLeast(0.dp)
@@ -400,7 +501,7 @@ private fun SeekBar(
                     .padding(start = thumbOffset)
                     .width(4.dp)
                     .height(18.dp)
-                    .background(Color.White, RoundedCornerShape(2.dp)),
+                    .background(controlColor, RoundedCornerShape(2.dp)),
             )
         }
 
@@ -413,12 +514,12 @@ private fun SeekBar(
             Text(
                 text = formatTime(displayMs),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.6f),
+                color = controlColorDim,
             )
             Text(
                 text = formatTime(durationMs),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.6f),
+                color = controlColorDim,
             )
         }
     }
@@ -436,7 +537,13 @@ private fun TransportControls(
     onNext: () -> Unit,
     onToggleShuffle: () -> Unit,
     onCycleRepeat: () -> Unit,
+    controlColor: Color = Color.White,
+    einkMode: Boolean = false,
 ) {
+    // In e-ink mode the play/pause button uses theme colors instead of white/black
+    val buttonBg = if (einkMode) controlColor else Color.White
+    val buttonFg = if (einkMode) MaterialTheme.colorScheme.onPrimary else Color.Black
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -451,8 +558,8 @@ private fun TransportControls(
                 imageVector = Icons.Default.Shuffle,
                 contentDescription = "Shuffle",
                 modifier = Modifier.size(24.dp),
-                tint = if (shuffleEnabled) Color.White
-                else Color.White.copy(alpha = 0.4f),
+                tint = if (shuffleEnabled) controlColor
+                else controlColor.copy(alpha = 0.4f),
             )
         }
 
@@ -465,7 +572,7 @@ private fun TransportControls(
                 imageVector = Icons.Default.SkipPrevious,
                 contentDescription = "Previous",
                 modifier = Modifier.size(36.dp),
-                tint = Color.White,
+                tint = controlColor,
             )
         }
 
@@ -475,7 +582,7 @@ private fun TransportControls(
             modifier = Modifier
                 .size(64.dp)
                 .background(
-                    color = Color.White,
+                    color = buttonBg,
                     shape = CircleShape,
                 ),
         ) {
@@ -483,14 +590,14 @@ private fun TransportControls(
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
                     strokeWidth = 3.dp,
-                    color = Color.Black,
+                    color = buttonFg,
                 )
             } else {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     modifier = Modifier.size(40.dp),
-                    tint = Color.Black,
+                    tint = buttonFg,
                 )
             }
         }
@@ -504,7 +611,7 @@ private fun TransportControls(
                 imageVector = Icons.Default.SkipNext,
                 contentDescription = "Next",
                 modifier = Modifier.size(36.dp),
-                tint = Color.White,
+                tint = controlColor,
             )
         }
 
@@ -520,8 +627,8 @@ private fun TransportControls(
                 },
                 contentDescription = "Repeat",
                 modifier = Modifier.size(24.dp),
-                tint = if (repeatMode != RepeatMode.OFF) Color.White
-                else Color.White.copy(alpha = 0.4f),
+                tint = if (repeatMode != RepeatMode.OFF) controlColor
+                else controlColor.copy(alpha = 0.4f),
             )
         }
     }

@@ -6,7 +6,10 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +37,24 @@ private val SpotifyGreenDark = Color(0xFF1AA34A)
 private val DefaultSurface = Color(0xFF1E1E1E)
 private val DefaultSurfaceVariant = Color(0xFF282828)
 private val DefaultBackground = Color(0xFF121212)
+
+val LocalEinkMode = compositionLocalOf { false }
+
+private val EinkColorScheme = lightColorScheme(
+    background = Color.White,
+    surface = Color.White,
+    surfaceVariant = Color(0xFFE0E0E0),
+    onBackground = Color.Black,
+    onSurface = Color.Black,
+    primary = Color.Black,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF444444),
+    secondary = Color(0xFF444444),
+    onSecondary = Color.White,
+    onSurfaceVariant = Color(0xFF444444),
+    error = Color(0xFF8B0000),
+    onError = Color.White,
+)
 
 private val paletteCache = LruCache<String, AlbumColors>(20)
 
@@ -139,8 +160,20 @@ private const val TRANSITION_MS = 800
 @Composable
 fun DynamicSidespotTheme(
     albumColors: AlbumColors,
+    einkMode: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    if (einkMode) {
+        CompositionLocalProvider(LocalEinkMode provides true) {
+            MaterialTheme(
+                colorScheme = EinkColorScheme,
+                typography = SidespotTypography,
+                content = content,
+            )
+        }
+        return
+    }
+
     val primary by animateColorAsState(
         targetValue = albumColors.primary,
         animationSpec = tween(TRANSITION_MS),
@@ -185,9 +218,11 @@ fun DynamicSidespotTheme(
         )
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = SidespotTypography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalEinkMode provides false) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = SidespotTypography,
+            content = content,
+        )
+    }
 }
