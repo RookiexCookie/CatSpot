@@ -103,6 +103,10 @@ class PlaybackService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            "com.sidespot.MEDIA_play" -> sendMediaCommand("play")
+            "com.sidespot.MEDIA_pause" -> sendMediaCommand("pause")
+            "com.sidespot.MEDIA_prev" -> sendMediaCommand("previous")
+            "com.sidespot.MEDIA_next" -> sendMediaCommand("next")
             ACTION_UPDATE -> {
                 val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
                 val artist = intent.getStringExtra(EXTRA_ARTIST) ?: ""
@@ -171,7 +175,7 @@ class PlaybackService : Service() {
         // Only stop if still paused (not playing)
         val state = mediaSession.controller?.playbackState?.state
         if (state != PlaybackState.STATE_PLAYING) {
-            sendMediaCommand { putExtra("command", "stop") }
+            sendMediaCommand("stop")
         }
     }
 
@@ -340,22 +344,16 @@ class PlaybackService : Service() {
         }
     }
 
-    private fun sendMediaCommand(block: Intent.() -> Unit) {
-        sendBroadcast(Intent("com.sidespot.MEDIA_COMMAND").apply {
-            setPackage(packageName)
-            block()
-        })
+    private fun sendMediaCommand(command: String, positionMs: Long = 0) {
+        MediaCommandBridge.onCommand?.invoke(command, positionMs)
     }
 
     private val mediaSessionCallback = object : MediaSession.Callback() {
-        override fun onPlay() = sendMediaCommand { putExtra("command", "play") }
-        override fun onPause() = sendMediaCommand { putExtra("command", "pause") }
-        override fun onSkipToNext() = sendMediaCommand { putExtra("command", "next") }
-        override fun onSkipToPrevious() = sendMediaCommand { putExtra("command", "previous") }
-        override fun onStop() = sendMediaCommand { putExtra("command", "stop") }
-        override fun onSeekTo(pos: Long) = sendMediaCommand {
-            putExtra("command", "seek")
-            putExtra("position", pos)
-        }
+        override fun onPlay() = sendMediaCommand("play")
+        override fun onPause() = sendMediaCommand("pause")
+        override fun onSkipToNext() = sendMediaCommand("next")
+        override fun onSkipToPrevious() = sendMediaCommand("previous")
+        override fun onStop() = sendMediaCommand("stop")
+        override fun onSeekTo(pos: Long) = sendMediaCommand("seek", pos)
     }
 }

@@ -1,9 +1,7 @@
 package com.sidespot.viewmodel
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.imageLoader
@@ -18,6 +16,7 @@ import com.sidespot.bridge.PlayerEvent
 import com.sidespot.bridge.TrackInfo
 import com.sidespot.history.PlayHistoryEntry
 import com.sidespot.history.PlayHistoryManager
+import com.sidespot.service.MediaCommandBridge
 import com.sidespot.service.PlaybackService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -62,7 +61,6 @@ class PlayerViewModel : ViewModel() {
 
     private var appContext: Context? = null
     private var audioFocusManager: AudioFocusManager? = null
-    private var mediaCommandReceiver: BroadcastReceiver? = null
     private var savedVolumeBeforeDuck: Int? = null
 
     private var lastEmittedPositionMs = 0L
@@ -100,30 +98,21 @@ class PlayerViewModel : ViewModel() {
             }
         }
 
-        // Register broadcast receiver for media session commands from PlaybackService
-        mediaCommandReceiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                when (intent?.getStringExtra("command")) {
-                    "play" -> play()
-                    "pause" -> pause()
-                    "next" -> next()
-                    "previous" -> previous()
-                    "stop" -> stop()
-                    "seek" -> {
-                        val pos = intent.getLongExtra("position", 0)
-                        seek(pos.toInt())
-                    }
-                }
+        // Direct callback for media session commands from PlaybackService
+        MediaCommandBridge.onCommand = { command, positionMs ->
+            when (command) {
+                "play" -> play()
+                "pause" -> pause()
+                "next" -> next()
+                "previous" -> previous()
+                "stop" -> stop()
+                "seek" -> seek(positionMs.toInt())
             }
         }
-        context.applicationContext.registerReceiver(
-            mediaCommandReceiver,
-            IntentFilter("com.sidespot.MEDIA_COMMAND"),
-            Context.RECEIVER_NOT_EXPORTED,
-        )
     }
 
     fun connect(accessToken: String, getToken: (suspend () -> String?)? = null) {
+        if (_uiState.value.isConnected) return
         tokenProvider = getToken
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(connectionStatus = "Connecting...", error = null) }
@@ -744,10 +733,8 @@ class PlayerViewModel : ViewModel() {
         eventPollingActive = false
         audioCallback.release()
         audioFocusManager?.abandonFocus()
-        appContext?.let { ctx ->
-            mediaCommandReceiver?.let { ctx.unregisterReceiver(it) }
-            PlaybackService.stopService(ctx)
-        }
+        MediaCommandBridge.onCommand = null
+        appContext?.let { PlaybackService.stopService(it) }
         NativeBridge.sessionDisconnect()
     }
 }
