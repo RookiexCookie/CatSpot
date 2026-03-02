@@ -409,6 +409,30 @@ pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_metadataSearch(
     }
 }
 
+/// Get autoplay (recommended) tracks. Takes context URI and recent track URIs as JSON array.
+/// Returns JSON array of track URI strings, or error JSON.
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_sidespot_bridge_NativeBridge_metadataGetAutoplayTracks(
+    mut env: JNIEnv,
+    _class: JClass,
+    context_uri: JString,
+    recent_track_uris_json: JString,
+) -> jstring {
+    let uri = jstring_to_string(&mut env, &context_uri);
+    let recent_json = jstring_to_string(&mut env, &recent_track_uris_json);
+
+    let recent: Vec<String> = serde_json::from_str(&recent_json).unwrap_or_default();
+
+    match block_on(metadata::get_autoplay_tracks(&uri, &recent)) {
+        Ok(json) => string_to_jstring(&mut env, &json),
+        Err(e) => {
+            let msg = format!("{{\"error\":\"{e}\"}}");
+            log::error!("metadataGetAutoplayTracks failed: {e}");
+            string_to_jstring(&mut env, &msg)
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Library write operations
 // ---------------------------------------------------------------------------

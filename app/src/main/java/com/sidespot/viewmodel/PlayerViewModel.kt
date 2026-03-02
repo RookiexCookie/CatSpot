@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 
 data class PlayerUiState(
     val isConnected: Boolean = false,
@@ -314,9 +315,13 @@ class PlayerViewModel : ViewModel() {
 
     fun next() {
         viewModelScope.launch(Dispatchers.IO) {
-            val nextUri = queueManager.next() ?: return@launch
-            loadTrack(nextUri)
-            preloadUpcoming()
+            val nextUri = queueManager.next()
+            if (nextUri != null) {
+                loadTrack(nextUri)
+                preloadUpcoming()
+            } else if (isAutoplayEnabled() && fetchAndPlayAutoplay()) {
+                // Autoplay started successfully
+            }
         }
     }
 
@@ -658,6 +663,8 @@ class PlayerViewModel : ViewModel() {
                     if (nextUri != null) {
                         loadTrack(nextUri)
                         preloadUpcoming()
+                    } else if (isAutoplayEnabled() && fetchAndPlayAutoplay()) {
+                        // Autoplay started successfully
                     } else {
                         _positionMs.value = 0L
                         _uiState.update { it.copy(isPlaying = false) }
@@ -710,6 +717,54 @@ class PlayerViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    private fun isAutoplayEnabled(): Boolean {
+        val ctx = appContext ?: return false
+        val prefs = ctx.getSharedPreferences("sidespot_settings", Context.MODE_PRIVATE)
+        return prefs.getBoolean("autoplay", false)
+    }
+
+    private suspend fun fetchAndPlayAutoplay(): Boolean {
+        val qState = queueManager.state.value
+        val contextUri = qState.contextUri
+        if (contextUri.isEmpty()) return false
+
+        // Gather recent track URIs (last 10 played from current context)
+        val recentUris = qState.contextTracks
+            .take(qState.contextIndex + 1)
+            .takeLast(10)
+        val recentJson = JSONArray(recentUris).toString()
+
+        val resultJson = try {
+            NativeBridge.metadataGetAutoplayTracks(contextUri, recentJson)
+        } catch (_: Exception) {
+            return false
+        } ?: return false
+
+        // Check for error response
+        if (resultJson.contains("\"error\"")) return false
+
+        val trackUris = try {
+            val arr = JSONArray(resultJson)
+            (0 until arr.length()).map { arr.getString(it) }
+        } catch (e: Exception) {
+            return false
+        }
+
+        if (trackUris.isEmpty()) return false
+
+        queueManager.loadContext(
+            tracks = trackUris,
+            startIndex = 0,
+            contextName = "Autoplay",
+            contextUri = contextUri,
+            isAutoplay = true,
+        )
+
+        loadTrack(trackUris[0])
+        preloadUpcoming()
+        return true
     }
 
     private suspend fun attemptReconnect(): Boolean {

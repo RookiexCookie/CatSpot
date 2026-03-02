@@ -125,6 +125,9 @@ object NativeBridge {
     /** Search Spotify. Returns JSON search results. */
     external fun metadataSearch(query: String): String?
 
+    /** Get autoplay tracks for a context. Returns JSON array of track URIs. */
+    external fun metadataGetAutoplayTracks(contextUri: String, recentTrackUrisJson: String): String?
+
     // -- Library write operations --
 
     /** Add a track to liked songs via native collection v2. Returns JSON result. */

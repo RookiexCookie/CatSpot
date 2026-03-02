@@ -18,6 +18,7 @@ data class QueueState(
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val originalContextTracks: List<String> = emptyList(),
     val trackMetadata: Map<String, TrackInfo> = emptyMap(),
+    val isAutoplay: Boolean = false,
 ) {
     val currentTrackUri: String?
         get() = if (contextIndex in contextTracks.indices) contextTracks[contextIndex] else null
@@ -34,9 +35,9 @@ class QueueManager {
     private val _state = MutableStateFlow(QueueState())
     val state: StateFlow<QueueState> = _state.asStateFlow()
 
-    fun loadContext(tracks: List<String>, startIndex: Int, contextName: String = "", contextUri: String = "") {
+    fun loadContext(tracks: List<String>, startIndex: Int, contextName: String = "", contextUri: String = "", isAutoplay: Boolean = false) {
         val current = _state.value
-        val actualTracks = if (current.shuffleEnabled) {
+        val actualTracks = if (current.shuffleEnabled && !isAutoplay) {
             val before = tracks.take(startIndex + 1)
             val after = tracks.drop(startIndex + 1).shuffled()
             before + after
@@ -49,10 +50,11 @@ class QueueManager {
             userQueue = emptyList(),
             contextName = contextName,
             contextUri = contextUri,
-            shuffleEnabled = current.shuffleEnabled,
+            shuffleEnabled = if (isAutoplay) false else current.shuffleEnabled,
             repeatMode = current.repeatMode,
-            originalContextTracks = if (current.shuffleEnabled) tracks else emptyList(),
+            originalContextTracks = if (current.shuffleEnabled && !isAutoplay) tracks else emptyList(),
             trackMetadata = current.trackMetadata,
+            isAutoplay = isAutoplay,
         )
     }
 
@@ -130,6 +132,7 @@ class QueueManager {
     }
 
     fun toggleShuffle() {
+        if (_state.value.isAutoplay) return
         _state.update { current ->
             if (!current.shuffleEnabled) {
                 // Shuffle remaining tracks after current position

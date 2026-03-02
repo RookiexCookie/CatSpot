@@ -328,6 +328,37 @@ pub async fn get_liked_songs() -> Result<String> {
     Ok(serde_json::to_string(&info)?)
 }
 
+/// Fetch autoplay (recommended) tracks based on a context URI and recent tracks.
+pub async fn get_autoplay_tracks(context_uri: &str, recent_track_uris: &[String]) -> Result<String> {
+    use librespot_protocol::autoplay_context_request::AutoplayContextRequest;
+
+    let session = session::get_session().await?;
+
+    let request = AutoplayContextRequest {
+        context_uri: Some(context_uri.to_string()),
+        recent_track_uri: recent_track_uris.to_vec(),
+        ..Default::default()
+    };
+
+    let context = session
+        .spclient()
+        .get_autoplay_context(&request)
+        .await
+        .map_err(|e| SidespotError::Player(format!("failed to get autoplay context: {e}")))?;
+
+    let mut track_uris = Vec::new();
+    for page in context.pages.iter() {
+        for track in page.tracks.iter() {
+            let uri = track.uri();
+            if !uri.is_empty() && uri.starts_with("spotify:track:") {
+                track_uris.push(uri.to_string());
+            }
+        }
+    }
+
+    Ok(serde_json::to_string(&track_uris)?)
+}
+
 /// Search Spotify and return track URIs.
 pub async fn search(query: &str) -> Result<String> {
     let session = session::get_session().await?;

@@ -407,6 +407,7 @@ private fun NowPlayingControls(
             isLoading = state.isLoading,
             shuffleEnabled = queueState.shuffleEnabled,
             repeatMode = queueState.repeatMode,
+            isAutoplay = queueState.isAutoplay,
             onPlay = viewModel::play,
             onPause = viewModel::pause,
             onPrevious = viewModel::previous,
@@ -546,6 +547,7 @@ private fun TransportControls(
     isLoading: Boolean,
     shuffleEnabled: Boolean,
     repeatMode: RepeatMode,
+    isAutoplay: Boolean = false,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onPrevious: () -> Unit,
@@ -564,18 +566,22 @@ private fun TransportControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Shuffle
-        IconButton(
-            onClick = onToggleShuffle,
-            modifier = Modifier.size(48.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Shuffle,
-                contentDescription = "Shuffle",
-                modifier = Modifier.size(24.dp),
-                tint = if (shuffleEnabled) controlColor
-                else controlColor.copy(alpha = 0.4f),
-            )
+        // Shuffle (hidden during autoplay)
+        if (!isAutoplay) {
+            IconButton(
+                onClick = onToggleShuffle,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shuffle,
+                    contentDescription = "Shuffle",
+                    modifier = Modifier.size(24.dp),
+                    tint = if (shuffleEnabled) controlColor
+                    else controlColor.copy(alpha = 0.4f),
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
         }
 
         // Previous
