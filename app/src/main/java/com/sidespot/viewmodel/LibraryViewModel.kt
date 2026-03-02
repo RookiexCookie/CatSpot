@@ -74,8 +74,11 @@ class LibraryViewModel : ViewModel() {
         // Only re-fetch API when cache expires, but always re-read local entries
         val now = System.currentTimeMillis()
         if (now - lastFetchedAt >= CACHE_TTL_MS) {
-            cachedApiOrder = api?.getRecentlyPlayedOrder()
-            lastFetchedAt = now
+            val result = api?.getRecentlyPlayedOrder()
+            if (result != null) {
+                cachedApiOrder = result
+                lastFetchedAt = now
+            }
         }
         val apiOrder = cachedApiOrder ?: return
 
