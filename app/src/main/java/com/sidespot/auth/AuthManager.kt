@@ -165,6 +165,10 @@ class AuthManager private constructor(context: Context) {
         }
     }
 
+    fun setError(message: String) {
+        _state.value = _state.value.copy(error = message)
+    }
+
     fun logout() {
         Log.i(TAG, "logout: called")
         prefs.edit().clear().commit()

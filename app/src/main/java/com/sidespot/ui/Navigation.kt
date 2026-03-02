@@ -1,6 +1,7 @@
 package com.sidespot.ui
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -286,7 +287,13 @@ fun SidespotNavigation(
                             authState = authState,
                             onSignIn = {
                                 val authUri = authManager.buildAuthUri()
-                                context.startActivity(Intent(Intent.ACTION_VIEW, authUri))
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, authUri))
+                                } catch (e: ActivityNotFoundException) {
+                                    authManager.setError(
+                                        "No browser installed — please install a web browser to sign in."
+                                    )
+                                }
                             },
                         )
                     }
