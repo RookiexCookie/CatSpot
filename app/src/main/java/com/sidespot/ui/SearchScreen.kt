@@ -44,8 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -77,6 +80,8 @@ fun SearchScreen(
     var selectedPlaylistUri by remember { mutableStateOf<String?>(null) }
     var playlistFeedbackText by remember { mutableStateOf<String?>(null) }
 
+    val focusManager = LocalFocusManager.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -95,7 +100,16 @@ fun SearchScreen(
         OutlinedTextField(
             value = state.query,
             onValueChange = searchViewModel::updateQuery,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onPreviewKeyEvent { event ->
+                    if (event.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN &&
+                        event.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                    ) {
+                        focusManager.moveFocus(FocusDirection.Down)
+                        true
+                    } else false
+                },
             placeholder = { Text("Songs, artists, albums...") },
             leadingIcon = {
                 Icon(

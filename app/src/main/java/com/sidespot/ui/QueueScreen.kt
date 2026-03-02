@@ -106,11 +106,17 @@ fun QueueScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                QueueTrackRow(
-                    albumArtUrl = playerState.albumArtUrl,
-                    title = playerState.trackTitle.ifEmpty { playerState.trackUri },
-                    artist = playerState.artistName,
-                )
+                Box(
+                    modifier = Modifier
+                        .focusHighlight()
+                        .clickable { },
+                ) {
+                    QueueTrackRow(
+                        albumArtUrl = playerState.albumArtUrl,
+                        title = playerState.trackTitle.ifEmpty { playerState.trackUri },
+                        artist = playerState.artistName,
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
