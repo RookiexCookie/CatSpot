@@ -225,11 +225,19 @@ fun SidespotNavigation(
     // If auth is lost (e.g. token refresh failed) or not yet signed in,
     // navigate to login.  This also handles the fresh-install case where
     // startDestination is LIBRARY but the user isn't authenticated yet.
+    // Conversely, if auth is gained while the player is already connected
+    // (e.g. sign-out → sign-in without the player disconnecting), navigate
+    // straight to library since the isConnected LaunchedEffect won't re-fire.
     LaunchedEffect(authState.isAuthenticated) {
         if (!authState.isAuthenticated && currentRoute != Routes.LOGIN) {
             Log.i("SidespotAuth", "auth-lost: navigating to login, currentRoute=$currentRoute")
             navController.navigate(Routes.LOGIN) {
                 popUpTo(0) { inclusive = true }
+            }
+        } else if (authState.isAuthenticated && state.isConnected && currentRoute == Routes.LOGIN) {
+            Log.i("SidespotAuth", "auth-gained: player already connected, navigating to library")
+            navController.navigate(Routes.LIBRARY) {
+                popUpTo(Routes.LOGIN) { inclusive = true }
             }
         }
     }
