@@ -176,7 +176,7 @@ fun SearchScreen(
                             track = track,
                             onClick = {
                                 playerViewModel.loadTrackFromContext(
-                                    state.trackUris, index, "Search: ${state.query}",
+                                    listOf(track.uri), 0, "Search: ${state.query}",
                                 )
                             },
                             onLongClick = {
