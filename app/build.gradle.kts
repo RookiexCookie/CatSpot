@@ -14,9 +14,9 @@ android {
     defaultConfig {
         applicationId = "com.sidespot.app"
         minSdk = 31
-        targetSdk = 34
-        versionCode = 6
-        versionName = "0.3.2"
+        targetSdk = 31
+        versionCode = 7
+        versionName = "0.3.3"
 
         // Only target arm64 (Sidephone SP-01 is aarch64)
         ndk {
@@ -61,6 +61,11 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    lint {
+        // Not distributed via Google Play; suppress Play Store targetSdk requirement
+        disable += "ExpiredTargetSdkVersion"
     }
 
     // The native .so is pre-built by cargo-ndk into jniLibs/
