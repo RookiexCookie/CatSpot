@@ -29,7 +29,7 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 - **Audio focus** -- pauses for calls, ducks for notifications, resumes automatically
 - **Play history** -- dedicated History view combining local Sidespot listening history with your official Spotify history (note: playback through Sidespot does not appear in your official Spotify history)
 - **E-ink display mode** -- high-contrast monochrome UI optimized for e-ink screens
-- **Settings** -- audio quality (96/160/320 kbps), volume normalization, gapless playback, autoplay, e-ink mode
+- **Settings** -- audio quality (160/320 kbps), volume normalization, gapless playback, autoplay, e-ink mode
 
 ## Sidephone Only Features
 
