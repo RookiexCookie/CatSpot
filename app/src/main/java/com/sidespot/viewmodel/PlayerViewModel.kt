@@ -727,8 +727,8 @@ class PlayerViewModel : ViewModel() {
 
     private suspend fun fetchAndPlayAutoplay(): Boolean {
         val qState = queueManager.state.value
-        val contextUri = qState.contextUri
-        if (contextUri.isEmpty()) return false
+        // Use context URI if available, otherwise fall back to current track URI
+        val contextUri = qState.contextUri.ifEmpty { qState.currentTrackUri ?: return false }
 
         // Gather recent track URIs (last 10 played from current context)
         val recentUris = qState.contextTracks
