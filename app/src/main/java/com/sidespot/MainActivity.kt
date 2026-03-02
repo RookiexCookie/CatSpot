@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity() {
             intent.data = null
             // Skip if already authenticated (stale callback from process restart)
             if (authManager.state.value.isAuthenticated) {
-                Log.d("SidespotAuth", "handleAuthCallback: skipping, already authenticated")
+                Log.i("SidespotAuth", "handleAuthCallback: skipping, already authenticated")
                 return
             }
             lifecycleScope.launch {
@@ -118,7 +118,7 @@ class MainActivity : ComponentActivity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-            Log.d("Sundial", "keyCode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)})")
+            Log.i("Sundial", "keyCode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)})")
         }
 
         // Tab key — intercept before Compose consumes it for focus traversal

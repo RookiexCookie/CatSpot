@@ -1,8 +1,7 @@
 package com.sidespot.auth
 
-import android.accounts.Account
-import android.accounts.AccountManager
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
@@ -31,8 +30,7 @@ class AuthManager private constructor(context: Context) {
 
     companion object {
         private const val TAG = "SidespotAuth"
-        private const val ACCOUNT_TYPE = "com.sidespot.auth"
-        private const val ACCOUNT_NAME = "Spotify"
+        private const val PREFS_NAME = "sidespot_auth"
         private const val TOKEN_TYPE_ACCESS = "access_token"
         private const val TOKEN_TYPE_REFRESH = "refresh_token"
         private const val KEY_EXPIRES_AT = "expires_at_ms"
@@ -59,16 +57,15 @@ class AuthManager private constructor(context: Context) {
             }
     }
 
-    private val am = AccountManager.get(context.applicationContext)
-    private val account = Account(ACCOUNT_NAME, ACCOUNT_TYPE)
+    private val prefs: SharedPreferences =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val _state = MutableStateFlow(AuthState())
     val state: StateFlow<AuthState> = _state.asStateFlow()
 
     init {
-        val accounts = am.getAccountsByType(ACCOUNT_TYPE)
-        val token = if (accounts.isNotEmpty()) am.getUserData(accounts[0], TOKEN_TYPE_ACCESS) else null
-        Log.d(TAG, "init: accounts=${accounts.size} token present=${token != null}")
+        val token = prefs.getString(TOKEN_TYPE_ACCESS, null)
+        Log.i(TAG, "init: token present=${token != null}")
         _state.value = AuthState(isAuthenticated = token != null)
     }
 
@@ -76,9 +73,7 @@ class AuthManager private constructor(context: Context) {
         val verifier = generateCodeVerifier()
         val challenge = generateCodeChallenge(verifier)
 
-        // Persist verifier in account user data so it survives process death
-        ensureAccount()
-        am.setUserData(account, KEY_CODE_VERIFIER, verifier)
+        prefs.edit().putString(KEY_CODE_VERIFIER, verifier).commit()
 
         return Uri.parse(AUTH_URL).buildUpon()
             .appendQueryParameter("client_id", CLIENT_ID)
@@ -93,7 +88,7 @@ class AuthManager private constructor(context: Context) {
     suspend fun exchangeCode(code: String) {
         _state.value = _state.value.copy(isLoading = true, error = null)
 
-        val verifier = am.getUserData(account, KEY_CODE_VERIFIER)
+        val verifier = prefs.getString(KEY_CODE_VERIFIER, null)
         if (verifier == null) {
             _state.value = _state.value.copy(
                 isLoading = false,
@@ -125,10 +120,10 @@ class AuthManager private constructor(context: Context) {
     }
 
     suspend fun refreshAccessToken(): String? {
-        Log.d(TAG, "refreshAccessToken: entering")
-        val refreshToken = am.getUserData(account, TOKEN_TYPE_REFRESH)
+        Log.i(TAG, "refreshAccessToken: entering")
+        val refreshToken = prefs.getString(TOKEN_TYPE_REFRESH, null)
         if (refreshToken == null) {
-            Log.d(TAG, "refreshAccessToken: refresh token is null")
+            Log.i(TAG, "refreshAccessToken: refresh token is null")
             return null
         }
 
@@ -140,30 +135,30 @@ class AuthManager private constructor(context: Context) {
             )
             val json = postTokenRequest(body)
             saveTokens(json)
-            Log.d(TAG, "refreshAccessToken: success")
+            Log.i(TAG, "refreshAccessToken: success")
             json.getString("access_token")
         } catch (e: Exception) {
-            Log.d(TAG, "refreshAccessToken: failed", e)
+            Log.i(TAG, "refreshAccessToken: failed", e)
             _state.value = _state.value.copy(error = "Token refresh failed: ${e.message}")
             null
         }
     }
 
     suspend fun getValidAccessToken(): String? {
-        val token = am.getUserData(account, TOKEN_TYPE_ACCESS)
+        val token = prefs.getString(TOKEN_TYPE_ACCESS, null)
         if (token == null) {
-            Log.d(TAG, "getValidAccessToken: no access token")
+            Log.i(TAG, "getValidAccessToken: no access token")
             return null
         }
-        val expiresAtStr = am.getUserData(account, KEY_EXPIRES_AT)
+        val expiresAtStr = prefs.getString(KEY_EXPIRES_AT, null)
         val expiresAt = expiresAtStr?.toLongOrNull() ?: 0L
         val now = System.currentTimeMillis()
         val secsLeft = (expiresAt - now) / 1000
-        Log.d(TAG, "getValidAccessToken: expiresAt=$expiresAt now=$now secsLeft=$secsLeft")
+        Log.i(TAG, "getValidAccessToken: expiresAt=$expiresAt now=$now secsLeft=$secsLeft")
 
         // Refresh if token expires within 60 seconds
         return if (now > expiresAt - 60_000) {
-            Log.d(TAG, "getValidAccessToken: token expired/expiring, refreshing")
+            Log.i(TAG, "getValidAccessToken: token expired/expiring, refreshing")
             refreshAccessToken()
         } else {
             token
@@ -171,19 +166,16 @@ class AuthManager private constructor(context: Context) {
     }
 
     fun logout() {
-        Log.d(TAG, "logout: called")
-        val accounts = am.getAccountsByType(ACCOUNT_TYPE)
-        for (a in accounts) {
-            am.removeAccountExplicitly(a)
-        }
+        Log.i(TAG, "logout: called")
+        prefs.edit().clear().commit()
         _state.value = AuthState(isAuthenticated = false)
     }
 
     fun needsReauth(): Boolean {
-        val stored = am.getUserData(account, KEY_SCOPES_HASH)
+        val stored = prefs.getString(KEY_SCOPES_HASH, null)
         val computed = scopesHash()
         val result = stored != computed
-        Log.d(TAG, "needsReauth: stored=$stored computed=$computed result=$result")
+        Log.i(TAG, "needsReauth: stored=$stored computed=$computed result=$result")
         return result
     }
 
@@ -192,25 +184,19 @@ class AuthManager private constructor(context: Context) {
         return digest.joinToString("") { "%02x".format(it) }
     }
 
-    private fun ensureAccount() {
-        val accounts = am.getAccountsByType(ACCOUNT_TYPE)
-        if (accounts.isEmpty()) {
-            am.addAccountExplicitly(account, null, null)
-            Log.d(TAG, "ensureAccount: created new account")
-        }
-    }
-
     private fun saveTokens(json: JSONObject) {
-        ensureAccount()
-        am.setUserData(account, TOKEN_TYPE_ACCESS, json.getString("access_token"))
-        if (json.has("refresh_token")) {
-            am.setUserData(account, TOKEN_TYPE_REFRESH, json.getString("refresh_token"))
-        }
-        val expiresIn = json.getInt("expires_in")
-        am.setUserData(account, KEY_EXPIRES_AT, (System.currentTimeMillis() + expiresIn * 1000L).toString())
-        am.setUserData(account, KEY_SCOPES_HASH, scopesHash())
-        am.setUserData(account, KEY_CODE_VERIFIER, null)
-        Log.d(TAG, "saveTokens: stored in AccountManager")
+        prefs.edit()
+            .putString(TOKEN_TYPE_ACCESS, json.getString("access_token"))
+            .apply {
+                if (json.has("refresh_token")) {
+                    putString(TOKEN_TYPE_REFRESH, json.getString("refresh_token"))
+                }
+            }
+            .putString(KEY_EXPIRES_AT, (System.currentTimeMillis() + json.getInt("expires_in") * 1000L).toString())
+            .putString(KEY_SCOPES_HASH, scopesHash())
+            .remove(KEY_CODE_VERIFIER)
+            .commit()
+        Log.i(TAG, "saveTokens: stored in SharedPreferences")
     }
 
     private suspend fun postTokenRequest(params: Map<String, String>): JSONObject =
