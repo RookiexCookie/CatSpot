@@ -152,7 +152,7 @@ keyPassword=your-key-password
 
 ## Disclaimer
 
-sidespot is not affiliated with or endorsed by Spotify. It uses a reverse-engineered protocol implementation ([librespot](https://github.com/librespot-org/librespot)). Use at your own risk. A Spotify Premium subscription is required.
+Sidespot is not affiliated with or endorsed by Spotify. It uses a reverse-engineered protocol implementation ([librespot](https://github.com/librespot-org/librespot)). Use at your own risk. A Spotify Premium subscription is required.
 
 ## License
 
