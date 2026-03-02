@@ -25,7 +25,9 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Strip debug/verbose logs from release builds
+# Strip verbose/debug logs from release builds (SP-01 ROM filters Log.d
+# at system level, so we use Log.i for app logs — kept in release for
+# future log-capture support)
 -assumenosideeffects class android.util.Log {
     public static int v(...);
     public static int d(...);

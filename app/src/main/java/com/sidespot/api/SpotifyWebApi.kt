@@ -98,7 +98,7 @@ class SpotifyWebApi(private val authManager: AuthManager) {
                 }
             val items = tracksObj.getJSONArray("items")
             val total = tracksObj.optInt("total", 0)
-            android.util.Log.d("SpotifyWebApi", "searchTracks: got ${items.length()} items, total=$total")
+            android.util.Log.i("SpotifyWebApi", "searchTracks: got ${items.length()} items, total=$total")
             val results = (0 until items.length()).mapNotNull { i ->
                 try {
                     val track = items.optJSONObject(i) ?: return@mapNotNull null

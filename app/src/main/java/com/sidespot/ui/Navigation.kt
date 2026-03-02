@@ -105,7 +105,7 @@ fun SidespotNavigation(
     // is consistent across Activity recreation.  Login redirect is handled by the
     // auth-lost LaunchedEffect below.
     val startDestination = Routes.LIBRARY
-    Log.d("SidespotAuth", "startDestination=$startDestination authState=$authState")
+    Log.i("SidespotAuth", "startDestination=$startDestination authState=$authState")
 
     // Hide bottom nav + mini-player on full-screen Now Playing and Login
     val hideChrome = currentRoute == Routes.NOW_PLAYING || currentRoute == Routes.LOGIN
@@ -184,15 +184,15 @@ fun SidespotNavigation(
     // isAuthenticated stays true across back-to-back sign-ins.  Skipping while
     // isLoading avoids racing with an in-flight exchangeCode().
     LaunchedEffect(authState.isAuthenticated, authState.version, authState.isLoading, state.isConnected) {
-        Log.d("SidespotAuth", "auto-connect: auth=${authState.isAuthenticated} version=${authState.version} loading=${authState.isLoading} connected=${state.isConnected}")
+        Log.i("SidespotAuth", "auto-connect: auth=${authState.isAuthenticated} version=${authState.version} loading=${authState.isLoading} connected=${state.isConnected}")
         if (authState.isAuthenticated && !state.isConnected && !authState.isLoading) {
             if (authManager.needsReauth()) {
-                Log.d("SidespotAuth", "auto-connect: needsReauth=true, logging out")
+                Log.i("SidespotAuth", "auto-connect: needsReauth=true, logging out")
                 authManager.logout()
                 return@LaunchedEffect
             }
             val token = authManager.getValidAccessToken()
-            Log.d("SidespotAuth", "auto-connect: token=${if (token != null) "present" else "null"}")
+            Log.i("SidespotAuth", "auto-connect: token=${if (token != null) "present" else "null"}")
             if (token != null) {
                 playerViewModel.connect(token) { authManager.getValidAccessToken() }
             }
@@ -207,13 +207,13 @@ fun SidespotNavigation(
 
     // Navigate from login to library once connected, and load library data
     LaunchedEffect(state.isConnected) {
-        Log.d("SidespotAuth", "isConnected changed: ${state.isConnected} currentRoute=$currentRoute")
+        Log.i("SidespotAuth", "isConnected changed: ${state.isConnected} currentRoute=$currentRoute")
         if (state.isConnected) {
             searchViewModel.initApi(authManager)
             libraryViewModel.initApi(authManager)
             libraryViewModel.loadPlaylists()
             if (currentRoute == Routes.LOGIN) {
-                Log.d("SidespotAuth", "navigating from login to library (connected)")
+                Log.i("SidespotAuth", "navigating from login to library (connected)")
                 navController.navigate(Routes.LIBRARY) {
                     popUpTo(Routes.LOGIN) { inclusive = true }
                 }
@@ -226,7 +226,7 @@ fun SidespotNavigation(
     // startDestination is LIBRARY but the user isn't authenticated yet.
     LaunchedEffect(authState.isAuthenticated) {
         if (!authState.isAuthenticated && currentRoute != Routes.LOGIN) {
-            Log.d("SidespotAuth", "auth-lost: navigating to login, currentRoute=$currentRoute")
+            Log.i("SidespotAuth", "auth-lost: navigating to login, currentRoute=$currentRoute")
             navController.navigate(Routes.LOGIN) {
                 popUpTo(0) { inclusive = true }
             }
