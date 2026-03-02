@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        authManager = AuthManager(this)
+        authManager = AuthManager.getInstance(this)
         settingsManager = SettingsManager(this)
 
         // Push initial config to native before any connect

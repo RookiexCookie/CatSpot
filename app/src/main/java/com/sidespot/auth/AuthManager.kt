@@ -27,7 +27,7 @@ data class AuthState(
     val version: Int = 0,
 )
 
-class AuthManager(context: Context) {
+class AuthManager private constructor(context: Context) {
 
     companion object {
         private const val TAG = "SidespotAuth"
@@ -49,6 +49,14 @@ class AuthManager(context: Context) {
             "user-read-recently-played"
         private const val AUTH_URL = "https://accounts.spotify.com/authorize"
         private const val TOKEN_URL = "https://accounts.spotify.com/api/token"
+
+        @Volatile
+        private var instance: AuthManager? = null
+
+        fun getInstance(context: Context): AuthManager =
+            instance ?: synchronized(this) {
+                instance ?: AuthManager(context.applicationContext).also { instance = it }
+            }
     }
 
     private val am = AccountManager.get(context.applicationContext)

@@ -101,8 +101,10 @@ fun SidespotNavigation(
     val libraryViewModel: LibraryViewModel = viewModel()
     val searchViewModel: SearchViewModel = viewModel()
 
-    // Start at library if authenticated (tokens persist on disk); login only if signed out
-    val startDestination = if (authState.isAuthenticated) Routes.LIBRARY else Routes.LOGIN
+    // Always use LIBRARY as start destination so the NavController's saved state
+    // is consistent across Activity recreation.  Login redirect is handled by the
+    // auth-lost LaunchedEffect below.
+    val startDestination = Routes.LIBRARY
     Log.d("SidespotAuth", "startDestination=$startDestination authState=$authState")
 
     // Hide bottom nav + mini-player on full-screen Now Playing and Login
@@ -205,11 +207,13 @@ fun SidespotNavigation(
 
     // Navigate from login to library once connected, and load library data
     LaunchedEffect(state.isConnected) {
+        Log.d("SidespotAuth", "isConnected changed: ${state.isConnected} currentRoute=$currentRoute")
         if (state.isConnected) {
             searchViewModel.initApi(authManager)
             libraryViewModel.initApi(authManager)
             libraryViewModel.loadPlaylists()
             if (currentRoute == Routes.LOGIN) {
+                Log.d("SidespotAuth", "navigating from login to library (connected)")
                 navController.navigate(Routes.LIBRARY) {
                     popUpTo(Routes.LOGIN) { inclusive = true }
                 }
@@ -217,7 +221,9 @@ fun SidespotNavigation(
         }
     }
 
-    // If auth is lost (e.g. token refresh failed), navigate back to login
+    // If auth is lost (e.g. token refresh failed) or not yet signed in,
+    // navigate to login.  This also handles the fresh-install case where
+    // startDestination is LIBRARY but the user isn't authenticated yet.
     LaunchedEffect(authState.isAuthenticated) {
         if (!authState.isAuthenticated && currentRoute != Routes.LOGIN) {
             Log.d("SidespotAuth", "auth-lost: navigating to login, currentRoute=$currentRoute")
