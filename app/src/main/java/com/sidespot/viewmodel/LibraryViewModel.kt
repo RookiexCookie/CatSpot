@@ -35,7 +35,7 @@ data class LibraryUiState(
     val albums: List<AlbumSummary> = emptyList(),
     val shows: List<ShowSummary> = emptyList(),
     val episodes: List<EpisodeSummary> = emptyList(),
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val isLoadingAlbums: Boolean = false,
     val isLoadingShows: Boolean = false,
     val isLoadingEpisodes: Boolean = false,
