@@ -299,6 +299,7 @@ class PlayerViewModel : ViewModel() {
     }
 
     fun seek(positionMs: Int) {
+        _positionMs.value = positionMs.toLong()
         viewModelScope.launch(Dispatchers.IO) { NativeBridge.playerSeek(positionMs) }
     }
 
