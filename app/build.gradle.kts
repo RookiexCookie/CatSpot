@@ -15,8 +15,8 @@ android {
         applicationId = "com.sidespot.app"
         minSdk = 31
         targetSdk = 31
-        versionCode = 8
-        versionName = "0.3.4"
+        versionCode = 9
+        versionName = "0.3.5"
 
         // Only target arm64 (Sidephone SP-01 is aarch64)
         ndk {
