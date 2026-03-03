@@ -1,6 +1,10 @@
 package com.sidespot.ui
 
 import android.app.Activity
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -23,15 +27,16 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -108,19 +113,21 @@ fun SidespotNavigation(
     val startDestination = Routes.LIBRARY
     Log.i("SidespotAuth", "startDestination=$startDestination authState=$authState")
 
-    // Hide bottom nav + mini-player on full-screen Now Playing and Login
-    val hideChrome = currentRoute == Routes.NOW_PLAYING || currentRoute == Routes.LOGIN
+    // Now Playing is a full-screen overlay (not a NavHost destination) so it can
+    // fade over the entire screen including the bottom bar with zero layout changes.
+    var showNowPlaying by remember { mutableStateOf(false) }
+
+    // Hide bottom nav + mini-player on Login
+    val hideChrome = currentRoute == Routes.LOGIN
 
     val settingsState by settingsManager.state.collectAsState()
     val albumColors = rememberAlbumColors(state.albumArtUrl)
-
-    // Hide status bar on Now Playing screen
-    val isNowPlaying = currentRoute == Routes.NOW_PLAYING
+    // Hide status bar while Now Playing overlay is visible
     val activity = LocalContext.current as? Activity
-    DisposableEffect(isNowPlaying) {
+    DisposableEffect(showNowPlaying) {
         val window = activity?.window ?: return@DisposableEffect onDispose {}
         val controller = WindowCompat.getInsetsController(window, window.decorView)
-        if (isNowPlaying) {
+        if (showNowPlaying) {
             controller.hide(WindowInsetsCompat.Type.statusBars())
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -140,17 +147,14 @@ fun SidespotNavigation(
         var nowPlayingOpenedAt = 0L
         if (mainActivity != null) {
             mainActivity.onNowPlayingToggleRequested = {
-                val onNowPlaying = navController.currentDestination?.route == Routes.NOW_PLAYING
-                if (onNowPlaying) {
+                if (showNowPlaying) {
                     val now = android.os.SystemClock.uptimeMillis()
                     if (now - nowPlayingOpenedAt > 400) {
-                        navController.popBackStack()
+                        showNowPlaying = false
                     }
                 } else {
                     nowPlayingOpenedAt = android.os.SystemClock.uptimeMillis()
-                    navController.navigate(Routes.NOW_PLAYING) {
-                        launchSingleTop = true
-                    }
+                    showNowPlaying = true
                 }
             }
             mainActivity.onTabCycleRequested = {
@@ -243,11 +247,9 @@ fun SidespotNavigation(
     }
 
     DynamicSidespotTheme(albumColors = albumColors, einkMode = settingsState.einkMode) {
+        Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = if (isNowPlaying) Color.Transparent
-                else MaterialTheme.colorScheme.background,
-            contentWindowInsets = if (isNowPlaying) WindowInsets(0)
-                else ScaffoldDefaults.contentWindowInsets,
+            containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 if (!hideChrome) {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -261,11 +263,7 @@ fun SidespotNavigation(
                                     if (state.isPlaying) playerViewModel.pause()
                                     else playerViewModel.play()
                                 },
-                                onClick = {
-                                    navController.navigate(Routes.NOW_PLAYING) {
-                                        launchSingleTop = true
-                                    }
-                                },
+                                onClick = { showNowPlaying = true },
                             )
                         }
 
@@ -280,10 +278,7 @@ fun SidespotNavigation(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(
-                        if (isNowPlaying) Modifier
-                        else Modifier.padding(innerPadding)
-                    ),
+                    .padding(innerPadding),
             ) {
                 NavHost(
                     navController = navController,
@@ -303,13 +298,6 @@ fun SidespotNavigation(
                                     )
                                 }
                             },
-                        )
-                    }
-
-                    composable(Routes.NOW_PLAYING) {
-                        NowPlayingScreen(
-                            viewModel = playerViewModel,
-                            onBack = { navController.popBackStack() },
                         )
                     }
 
@@ -374,11 +362,7 @@ fun SidespotNavigation(
                             onGoToAlbum = { albumUri ->
                                 navController.navigate(Routes.trackList(albumUri))
                             },
-                            onPlayStarted = {
-                                navController.navigate(Routes.NOW_PLAYING) {
-                                    launchSingleTop = true
-                                }
-                            },
+                            onPlayStarted = { showNowPlaying = true },
                         )
                     }
 
@@ -471,6 +455,20 @@ fun SidespotNavigation(
                     }
                 }
             }
+        }
+
+        // Now Playing full-screen overlay — fades over everything including bottom bar
+        AnimatedVisibility(
+            visible = showNowPlaying,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            BackHandler { showNowPlaying = false }
+            NowPlayingScreen(
+                viewModel = playerViewModel,
+                onBack = { showNowPlaying = false },
+            )
+        }
         }
     }
 }
