@@ -2,23 +2,25 @@ package com.sidespot.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sidespot.api.SearchPage
-import com.sidespot.api.SpotifyWebApi
-import com.sidespot.auth.AuthManager
 import com.sidespot.bridge.NativeBridge
+import com.sidespot.bridge.SearchAlbumResult
+import com.sidespot.bridge.SearchPageResult
+import com.sidespot.bridge.SearchPlaylistResult
 import com.sidespot.bridge.SearchResults
+import com.sidespot.bridge.SearchShowResult
 import com.sidespot.bridge.ShowSummary
 import com.sidespot.bridge.TrackInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
 
 data class AlbumResult(
     val uri: String,
@@ -55,6 +57,9 @@ data class SearchUiState(
 )
 
 private const val SEARCH_PAGE_SIZE = 5
+private const val SEARCH_TIMEOUT_MS = 15_000L
+
+private val lenientJson = Json { ignoreUnknownKeys = true }
 
 class SearchViewModel : ViewModel() {
 
@@ -62,17 +67,10 @@ class SearchViewModel : ViewModel() {
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
     private var searchJob: Job? = null
-    private var webApi: SpotifyWebApi? = null
     private var totalTracksAvailable = 0
     private var totalAlbumsAvailable = 0
     private var totalShowsAvailable = 0
     private var totalPlaylistsAvailable = 0
-
-    fun initApi(authManager: AuthManager) {
-        if (webApi == null) {
-            webApi = SpotifyWebApi(authManager)
-        }
-    }
 
     fun updateQuery(query: String) {
         _uiState.update { it.copy(query = query) }
@@ -114,89 +112,56 @@ class SearchViewModel : ViewModel() {
     private suspend fun performSearch(query: String) {
         _uiState.update { it.copy(isSearching = true, error = null) }
 
-        val api = webApi
-        if (api != null) {
-            val tracksDeferred = viewModelScope.async(Dispatchers.IO) {
-                try { api.searchTracks(query) } catch (_: Exception) { null }
-            }
-            val albumsDeferred = viewModelScope.async(Dispatchers.IO) {
-                try { api.searchAlbums(query) } catch (_: Exception) { null }
-            }
-            val showsDeferred = viewModelScope.async(Dispatchers.IO) {
-                try { api.searchShows(query) } catch (_: Exception) { null }
-            }
-            val playlistsDeferred = viewModelScope.async(Dispatchers.IO) {
-                try { api.searchPlaylists(query) } catch (_: Exception) { null }
-            }
-
-            val tracksPage = tracksDeferred.await()
-            val albumsPage = albumsDeferred.await()
-            val showsPage = showsDeferred.await()
-            val playlistsPage = playlistsDeferred.await()
-
-            if (tracksPage != null || albumsPage != null || showsPage != null || playlistsPage != null) {
-                totalTracksAvailable = tracksPage?.total ?: 0
-                totalAlbumsAvailable = albumsPage?.total ?: 0
-                totalShowsAvailable = showsPage?.total ?: 0
-                totalPlaylistsAvailable = playlistsPage?.total ?: 0
-                val tracks = tracksPage?.items ?: emptyList()
-                val albums = albumsPage?.items ?: emptyList()
-                val shows = showsPage?.items ?: emptyList()
-                val playlists = playlistsPage?.items ?: emptyList()
-                _uiState.update {
-                    it.copy(
-                        isSearching = false,
-                        tracks = tracks,
-                        trackUris = tracks.map { t -> t.uri },
-                        albums = albums,
-                        shows = shows,
-                        playlists = playlists,
-                        tracksDisplayLimit = SEARCH_PAGE_SIZE,
-                        albumsDisplayLimit = SEARCH_PAGE_SIZE,
-                        showsDisplayLimit = SEARCH_PAGE_SIZE,
-                        playlistsDisplayLimit = SEARCH_PAGE_SIZE,
-                        hasMoreTracks = tracks.size > SEARCH_PAGE_SIZE || totalTracksAvailable > tracks.size,
-                        hasMoreAlbums = albums.size > SEARCH_PAGE_SIZE || totalAlbumsAvailable > albums.size,
-                        hasMoreShows = shows.size > SEARCH_PAGE_SIZE || totalShowsAvailable > shows.size,
-                        hasMorePlaylists = playlists.size > SEARCH_PAGE_SIZE || totalPlaylistsAvailable > playlists.size,
-                    )
-                }
-                return
+        val json = withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
+            withContext(Dispatchers.IO) {
+                NativeBridge.metadataSearch(query)
             }
         }
 
-        // Fallback: native search if Web API unavailable
-        fallbackNativeSearch(query)
-    }
-
-    private suspend fun fallbackNativeSearch(query: String) {
-        val json = NativeBridge.metadataSearch(query)
-        if (json == null || json.startsWith("{\"error\"")) {
-            _uiState.update { it.copy(isSearching = false, error = json ?: "Search failed") }
+        if (json == null) {
+            _uiState.update { it.copy(isSearching = false, error = "Search timed out") }
             return
         }
+
+        if (json.startsWith("{\"error\"")) {
+            _uiState.update { it.copy(isSearching = false, error = "Search failed") }
+            return
+        }
+
         val results = SearchResults.fromJson(json)
         if (results == null) {
-            _uiState.update { it.copy(isSearching = false, error = "Failed to parse results") }
+            _uiState.update { it.copy(isSearching = false, error = "Search failed") }
             return
         }
-        _uiState.update { it.copy(trackUris = results.trackUris) }
 
-        val metadataDispatcher = Dispatchers.IO.limitedParallelism(4)
-        val allTracks = mutableListOf<TrackInfo>()
-        for (chunk in results.trackUris.take(50).chunked(10)) {
-            val deferred = chunk.map { uri ->
-                viewModelScope.async(metadataDispatcher) {
-                    val trackJson = NativeBridge.metadataGetTrack(uri)
-                    trackJson?.let { TrackInfo.fromJson(it) }
-                }
-            }
-            val batch = deferred.awaitAll().filterNotNull()
-            allTracks.addAll(batch)
-            val albums = deriveAlbums(allTracks)
-            _uiState.update { it.copy(tracks = allTracks.toList(), albums = albums) }
+        val tracks = results.tracks
+        val albums = results.albums.map { it.toUiModel() }
+        val playlists = results.playlists.map { it.toUiModel() }
+        val shows = results.shows.map { it.toUiModel() }
+
+        totalTracksAvailable = results.totalTracks
+        totalAlbumsAvailable = results.totalAlbums
+        totalPlaylistsAvailable = results.totalPlaylists
+        totalShowsAvailable = results.totalShows
+
+        _uiState.update {
+            it.copy(
+                isSearching = false,
+                tracks = tracks,
+                trackUris = tracks.map { t -> t.uri },
+                albums = albums,
+                shows = shows,
+                playlists = playlists,
+                tracksDisplayLimit = SEARCH_PAGE_SIZE,
+                albumsDisplayLimit = SEARCH_PAGE_SIZE,
+                showsDisplayLimit = SEARCH_PAGE_SIZE,
+                playlistsDisplayLimit = SEARCH_PAGE_SIZE,
+                hasMoreTracks = tracks.size > SEARCH_PAGE_SIZE || totalTracksAvailable > tracks.size,
+                hasMoreAlbums = albums.size > SEARCH_PAGE_SIZE || totalAlbumsAvailable > albums.size,
+                hasMoreShows = shows.size > SEARCH_PAGE_SIZE || totalShowsAvailable > shows.size,
+                hasMorePlaylists = playlists.size > SEARCH_PAGE_SIZE || totalPlaylistsAvailable > playlists.size,
+            )
         }
-        _uiState.update { it.copy(isSearching = false) }
     }
 
     fun showMoreTracks() {
@@ -206,7 +171,7 @@ class SearchViewModel : ViewModel() {
         if (newLimit > state.tracks.size && state.tracks.size < totalTracksAvailable) {
             viewModelScope.launch(Dispatchers.IO) {
                 _uiState.update { it.copy(isLoadingMore = true) }
-                val page = webApi?.searchTracks(state.query, offset = state.tracks.size)
+                val page = fetchMoreNative<TrackInfo>(state.query, "track", state.tracks.size)
                 if (page != null) {
                     totalTracksAvailable = page.total
                     _uiState.update { s ->
@@ -240,11 +205,11 @@ class SearchViewModel : ViewModel() {
         if (newLimit > state.albums.size && state.albums.size < totalAlbumsAvailable) {
             viewModelScope.launch(Dispatchers.IO) {
                 _uiState.update { it.copy(isLoadingMore = true) }
-                val page = webApi?.searchAlbums(state.query, offset = state.albums.size)
+                val page = fetchMoreNative<SearchAlbumResult>(state.query, "album", state.albums.size)
                 if (page != null) {
                     totalAlbumsAvailable = page.total
                     _uiState.update { s ->
-                        val allAlbums = s.albums + page.items
+                        val allAlbums = s.albums + page.items.map { it.toUiModel() }
                         s.copy(
                             albums = allAlbums,
                             albumsDisplayLimit = newLimit,
@@ -273,11 +238,11 @@ class SearchViewModel : ViewModel() {
         if (newLimit > state.shows.size && state.shows.size < totalShowsAvailable) {
             viewModelScope.launch(Dispatchers.IO) {
                 _uiState.update { it.copy(isLoadingMore = true) }
-                val page = webApi?.searchShows(state.query, offset = state.shows.size)
+                val page = fetchMoreNative<SearchShowResult>(state.query, "show", state.shows.size)
                 if (page != null) {
                     totalShowsAvailable = page.total
                     _uiState.update { s ->
-                        val allShows = s.shows + page.items
+                        val allShows = s.shows + page.items.map { it.toUiModel() }
                         s.copy(
                             shows = allShows,
                             showsDisplayLimit = newLimit,
@@ -306,11 +271,11 @@ class SearchViewModel : ViewModel() {
         if (newLimit > state.playlists.size && state.playlists.size < totalPlaylistsAvailable) {
             viewModelScope.launch(Dispatchers.IO) {
                 _uiState.update { it.copy(isLoadingMore = true) }
-                val page = webApi?.searchPlaylists(state.query, offset = state.playlists.size)
+                val page = fetchMoreNative<SearchPlaylistResult>(state.query, "playlist", state.playlists.size)
                 if (page != null) {
                     totalPlaylistsAvailable = page.total
                     _uiState.update { s ->
-                        val allPlaylists = s.playlists + page.items
+                        val allPlaylists = s.playlists + page.items.map { it.toUiModel() }
                         s.copy(
                             playlists = allPlaylists,
                             playlistsDisplayLimit = newLimit,
@@ -332,18 +297,35 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-    private fun deriveAlbums(tracks: List<TrackInfo>): List<AlbumResult> {
-        val seen = mutableSetOf<String>()
-        return tracks.mapNotNull { track ->
-            if (track.albumUri.isBlank()) return@mapNotNull null
-            if (seen.add(track.albumUri)) {
-                AlbumResult(
-                    uri = track.albumUri,
-                    name = track.albumName,
-                    artistName = track.artistName,
-                    albumArtUrl = track.albumArtUrl,
-                )
-            } else null
+    private inline fun <reified T> fetchMoreNative(query: String, type: String, offset: Int): SearchPageResult<T>? {
+        val json = NativeBridge.metadataSearchMore(query, type, offset) ?: return null
+        if (json.startsWith("{\"error\"")) return null
+        return try {
+            lenientJson.decodeFromString<SearchPageResult<T>>(json)
+        } catch (_: Exception) {
+            null
         }
     }
 }
+
+// Mapping extensions from bridge types to UI types
+private fun SearchAlbumResult.toUiModel() = AlbumResult(
+    uri = uri,
+    name = name,
+    artistName = artistName,
+    albumArtUrl = albumArtUrl,
+)
+
+private fun SearchPlaylistResult.toUiModel() = PlaylistResult(
+    uri = uri,
+    name = name,
+    ownerName = ownerName,
+    imageUrl = imageUrl,
+)
+
+private fun SearchShowResult.toUiModel() = ShowSummary(
+    uri = uri,
+    name = name,
+    publisher = publisher,
+    imageUrl = imageUrl,
+)

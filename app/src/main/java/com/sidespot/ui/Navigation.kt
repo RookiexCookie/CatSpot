@@ -214,7 +214,6 @@ fun SidespotNavigation(
     LaunchedEffect(state.isConnected) {
         Log.i("SidespotAuth", "isConnected changed: ${state.isConnected} currentRoute=$currentRoute")
         if (state.isConnected) {
-            searchViewModel.initApi(authManager)
             libraryViewModel.initApi(authManager)
             libraryViewModel.loadPlaylists()
             if (currentRoute == Routes.LOGIN) {

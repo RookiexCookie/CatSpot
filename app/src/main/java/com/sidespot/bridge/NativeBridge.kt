@@ -125,6 +125,9 @@ object NativeBridge {
     /** Search Spotify. Returns JSON search results. */
     external fun metadataSearch(query: String): String?
 
+    /** Paginated search for a single entity type. Returns JSON with items + total. */
+    external fun metadataSearchMore(query: String, searchType: String, offset: Int): String?
+
     /** Get autoplay tracks for a context. Returns JSON array of track URIs. */
     external fun metadataGetAutoplayTracks(contextUri: String, recentTrackUrisJson: String): String?
 

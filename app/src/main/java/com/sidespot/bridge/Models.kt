@@ -103,7 +103,14 @@ data class PlaylistSummary(
 
 @Serializable
 data class SearchResults(
-    @SerialName("track_uris") val trackUris: List<String>,
+    val tracks: List<TrackInfo> = emptyList(),
+    val albums: List<SearchAlbumResult> = emptyList(),
+    val playlists: List<SearchPlaylistResult> = emptyList(),
+    val shows: List<SearchShowResult> = emptyList(),
+    @SerialName("total_tracks") val totalTracks: Int = 0,
+    @SerialName("total_albums") val totalAlbums: Int = 0,
+    @SerialName("total_playlists") val totalPlaylists: Int = 0,
+    @SerialName("total_shows") val totalShows: Int = 0,
 ) {
     companion object {
         fun fromJson(jsonString: String): SearchResults? = try {
@@ -113,6 +120,36 @@ data class SearchResults(
         }
     }
 }
+
+@Serializable
+data class SearchAlbumResult(
+    val uri: String,
+    val name: String,
+    @SerialName("artist_name") val artistName: String,
+    @SerialName("album_art_url") val albumArtUrl: String? = null,
+)
+
+@Serializable
+data class SearchPlaylistResult(
+    val uri: String,
+    val name: String,
+    @SerialName("owner_name") val ownerName: String,
+    @SerialName("image_url") val imageUrl: String? = null,
+)
+
+@Serializable
+data class SearchShowResult(
+    val uri: String,
+    val name: String,
+    val publisher: String,
+    @SerialName("image_url") val imageUrl: String? = null,
+)
+
+@Serializable
+data class SearchPageResult<T>(
+    val items: List<T>,
+    val total: Int,
+)
 
 @Serializable
 data class AlbumSummary(

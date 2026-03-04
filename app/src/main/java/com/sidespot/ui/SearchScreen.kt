@@ -134,17 +134,12 @@ fun SearchScreen(
             ) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
-        } else if (state.error != null) {
-            Text(
-                text = state.error ?: "Error",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-            )
         } else if (state.tracks.isEmpty() && state.albums.isEmpty() && state.shows.isEmpty() && state.playlists.isEmpty() && state.query.isNotBlank() && !state.isSearching) {
             Text(
-                text = "No results",
+                text = state.error ?: "No results",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (state.error != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             val displayedTracks = remember(state.tracks, state.tracksDisplayLimit) {

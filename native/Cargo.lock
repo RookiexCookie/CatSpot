@@ -2249,6 +2249,8 @@ name = "sidespot-native"
 version = "0.1.0"
 dependencies = [
  "android_logger",
+ "bytes",
+ "hyper",
  "jni",
  "librespot-core",
  "librespot-metadata",
