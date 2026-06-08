@@ -46,7 +46,7 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "sidespot",
+                    text = "CatSpot",
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1DB954),

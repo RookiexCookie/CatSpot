@@ -157,11 +157,12 @@ fun SidespotNavigation(
                     showNowPlaying = true
                 }
             }
-            mainActivity.onTabCycleRequested = {
+            mainActivity.onTabCycleRequested = { direction ->
                 val currentIdx = bottomNavItems.indexOfFirst {
                     it.route == navController.currentDestination?.route
                 }
-                val nextIdx = (currentIdx + 1) % bottomNavItems.size
+                // Handle negative direction (modulo doesn't work for negatives in Kotlin the way we want)
+                val nextIdx = (currentIdx + direction + bottomNavItems.size) % bottomNavItems.size
                 navController.navigate(bottomNavItems[nextIdx].route) {
                     popUpTo(navController.graph.findStartDestination().id) {
                         inclusive = false

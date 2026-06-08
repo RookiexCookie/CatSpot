@@ -202,9 +202,6 @@ pub async fn create_player() -> Result<()> {
                 PlayerEvent::Unavailable { track_id, .. } => PlayerEventInfo::Error {
                     message: format!("Track unavailable: {}", uri_to_string(&track_id)),
                 },
-                PlayerEvent::Timeout { track_id, .. } => PlayerEventInfo::Timeout {
-                    message: format!("Track load timed out: {}", uri_to_string(&track_id)),
-                },
                 _ => continue, // Skip other events for now
             };
 

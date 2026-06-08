@@ -12,15 +12,15 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.sidespot.app"
-        minSdk = 31
+        applicationId = "com.catspot.app"
+        minSdk = 30
         targetSdk = 31
         versionCode = 10
         versionName = "0.3.6"
 
-        // Only target arm64 (Sidephone SP-01 is aarch64)
+        // Target arm64 and armeabi-v7a (for CAT S22)
         ndk {
-            abiFilters += "arm64-v8a"
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 
@@ -115,9 +115,10 @@ dependencies {
 // Task to build the native Rust library before the Android build
 tasks.register<Exec>("buildNativeRelease") {
     workingDir = file("${rootProject.projectDir}/native")
-    environment("ANDROID_NDK_HOME", "/opt/homebrew/share/android-commandlinetools/ndk/27.0.12077973")
-    environment("PATH", "${System.getenv("HOME")}/.cargo/bin:${System.getenv("PATH")}")
-    commandLine("cargo", "ndk", "-t", "arm64-v8a", "-o", "../app/src/main/jniLibs", "build", "--release")
+    val userProfile = System.getenv("USERPROFILE") ?: "C:\\Users\\Administrator"
+    environment("ANDROID_NDK_HOME", "$userProfile\\AppData\\Local\\Android\\Sdk\\ndk\\28.2.13676358")
+    environment("PATH", "$userProfile\\.cargo\\bin;${System.getenv("PATH")}")
+    commandLine("$userProfile\\.cargo\\bin\\cargo.exe", "ndk", "-t", "armeabi-v7a", "-o", "../app/src/main/jniLibs", "build", "--release")
 }
 
 // Hook native build into the Android build pipeline

@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
 
     var currentRoute: String? = null
     var onNowPlayingToggleRequested: (() -> Unit)? = null
-    var onTabCycleRequested: (() -> Unit)? = null
+    var onTabCycleRequested: ((direction: Int) -> Unit)? = null
 
     // Center button long-press tracking
     private var centerDownTime = 0L
@@ -129,10 +129,18 @@ class MainActivity : ComponentActivity() {
             return true
         }
 
-        // DPAD_LEFT — cycle bottom nav tabs
-        if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+        // 301 (Demo App 1) — cycle bottom nav tabs left
+        if (event.keyCode == 301) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                onTabCycleRequested?.invoke()
+                onTabCycleRequested?.invoke(-1)
+            }
+            return true
+        }
+
+        // KEYCODE_DEL (67) — cycle bottom nav tabs right
+        if (event.keyCode == KeyEvent.KEYCODE_DEL) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                onTabCycleRequested?.invoke(1)
             }
             return true
         }
@@ -148,7 +156,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // Center button: Play/Pause on Now Playing; short press = select, long press = row actions elsewhere
-        if (event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+        if (event.keyCode == KeyEvent.KEYCODE_ENTER) {
             if (currentRoute == Routes.NOW_PLAYING) {
                 if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
                     val vm = playerViewModel ?: return true
@@ -167,14 +175,16 @@ class MainActivity : ComponentActivity() {
                         val held = event.eventTime - centerDownTime
                         if (held >= ViewConfiguration.getLongPressTimeout()) {
                             centerLongPressed = true
-                            dispatchSyntheticKey(KeyEvent.KEYCODE_ENTER)
+                            // For long press, dispatch DPAD_CENTER to trigger options/long-click in Compose
+                            dispatchSyntheticKey(KeyEvent.KEYCODE_DPAD_CENTER)
                         }
                     }
                     return true
                 }
                 KeyEvent.ACTION_UP -> {
                     if (!centerLongPressed) {
-                        dispatchSyntheticKey(KeyEvent.KEYCODE_DPAD_CENTER)
+                        // For short press, dispatch ENTER to trigger standard selection in Compose
+                        dispatchSyntheticKey(KeyEvent.KEYCODE_ENTER)
                     }
                     return true
                 }
