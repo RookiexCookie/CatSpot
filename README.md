@@ -4,7 +4,7 @@ A lightweight, GMS-free Spotify client specifically tailored and optimized for t
 
 This is a fork of the awesome [Sidespot](https://codeberg.org/jtaekman/sidespot) project, retaining its beautiful Jetpack Compose UI while adding full support for 32-bit (armeabi-v7a) architectures and physical keypad navigation specific to the Cat S22 Flip.
 
-Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a minimal Jetpack Compose UI optimized for 480x640 displays.
+Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a minimal Jetpack Compose UI optimized for 480x640 displays. With the help of AI
 
 ## Features
 
