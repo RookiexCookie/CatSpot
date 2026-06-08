@@ -20,7 +20,6 @@ Built on [librespot](https://github.com/librespot-org/librespot) (Rust) with a m
 
 <p align="center">
   <img src="screenshots/library_top.png" width="180" alt="Library">
-  <img src="screenshots/liked_songs.png" width="180" alt="Liked Songs">
   <img src="screenshots/search.png" width="180" alt="Search">
   <img src="screenshots/queue.png" width="180" alt="Queue">
   <img src="screenshots/now_playing.png" width="180" alt="Now Playing">
